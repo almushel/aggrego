@@ -6,11 +6,15 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/almushel/aggrego/internal/database"
 )
 
 const (
 	apiAddr = "http://localhost:8080/v1"
 )
+
+var apikey string
 
 func TestPostUser(t *testing.T) {
 	var rBody struct {
@@ -40,5 +44,39 @@ func TestPostUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	println(string(result))
+	var user database.User
+	err = json.Unmarshal(result, &user)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	apikey = user.Apikey
+}
+
+func TestGetUser(t *testing.T) {
+	request, _ := http.NewRequest("GET", apiAddr+"/users", nil)
+
+	response, _ := http.DefaultClient.Do(request)
+	if response.StatusCode != 401 {
+		t.Fatal("Get user succeeded without api key")
+	}
+
+	request.Header.Add("Authorization", "ApiKey "+apikey)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	} else if response.StatusCode != 200 {
+		t.Fatal(response.Status)
+	}
+
+	buf, err := io.ReadAll(response.Body)
+	defer response.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var user database.User
+	err = json.Unmarshal(buf, &user)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

@@ -94,6 +94,23 @@ func (api *apiState) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 200, dbResult)
 }
 
+func (api *apiState) GetUsersHandler(w http.ResponseWriter, r *http.Request) {
+	auth := r.Header.Get("Authorization")
+	if len(auth) <= len("ApiKey ") {
+		respondWithError(w, 401, "Invalid authorization header")
+		return
+	}
+
+	apikey := auth[len("ApiKey "):]
+	result, err := api.DB.GetUserByKey(r.Context(), apikey)
+	if err != nil {
+		respondWithError(w, 404, "Not found")
+		return
+	}
+
+	respondWithJSON(w, 200, result)
+}
+
 func main() {
 	var err error
 	var corsOptions cors.Options
@@ -128,6 +145,7 @@ func main() {
 	v1Router.Get("/readiness", readinessHandler)
 	v1Router.Get("/error", errorHandler)
 	v1Router.Post("/users", api.PostUsersHandler)
+	v1Router.Get("/users", api.GetUsersHandler)
 	router.Mount("/v1", v1Router)
 
 	server.Addr = "localhost:" + os.Getenv("PORT")
