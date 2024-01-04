@@ -159,11 +159,25 @@ func (api *apiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	feed, err := api.DB.CreateFeed(r.Context(), feedParams)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, 500, "Internal server error")
+		// NOTE: Is there a better what to handle these?
+		if strings.Contains(err.Error(), "duplicate key value") {
+			respondWithError(w, 409, "Duplicate feed URL")
+		} else {
+			respondWithError(w, 500, "Internal server error")
+		}
 		return
 	}
 
 	respondWithJSON(w, 201, feed)
+}
+
+func (api *apiState) GetFeedsHandler(w http.ResponseWriter, r *http.Request) {
+	feeds, err := api.DB.GetFeeds(r.Context())
+	if err != nil {
+		respondWithError(w, 500, "Internal server error")
+	}
+
+	respondWithJSON(w, 200, feeds)
 }
 
 func main() {
@@ -202,6 +216,7 @@ func main() {
 	v1Router.Post("/users", api.PostUsersHandler)
 	v1Router.Get("/users", api.GetUsersHandler)
 	v1Router.Post("/feeds", api.PostFeedsHandler)
+	v1Router.Get("/feeds", api.GetFeedsHandler)
 	router.Mount("/v1", v1Router)
 
 	server.Addr = "localhost:" + os.Getenv("PORT")

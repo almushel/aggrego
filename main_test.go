@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
 
 	"github.com/almushel/aggrego/internal/database"
+	"github.com/google/uuid"
 )
 
 const (
@@ -82,7 +84,7 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestPostFeed(t *testing.T) {
-	body := []byte(`{"name": "testfeed", "url": "http://test.com/feed"}`)
+	body := []byte(`{"name": "testfeed", "url": "http://test.com/` + fmt.Sprint(uuid.New()) + `"}`)
 	request, _ := http.NewRequest("POST", apiAddr+"/feeds", bytes.NewBuffer(body))
 	request.Header.Add("Authorization", "ApiKey "+apikey)
 	response, err := http.DefaultClient.Do(request)
@@ -103,6 +105,28 @@ func TestPostFeed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
 
-	println(string(buf))
+func TestGetFeeds(t *testing.T) {
+	request, _ := http.NewRequest("GET", apiAddr+"/feeds", nil)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	} else if response.StatusCode != 200 {
+		t.Fatal(response.Status)
+	}
+
+	buf, err := io.ReadAll(response.Body)
+	defer response.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var feeds []database.Feed
+	err = json.Unmarshal(buf, &feeds)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//println(string(buf))
 }
