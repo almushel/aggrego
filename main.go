@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -66,6 +67,25 @@ func errorHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithError(w, 500, "Internal server error")
 }
 
+func (api *apiState) UserAuth(w http.ResponseWriter, r *http.Request) (database.User, error) {
+	var result database.User
+	auth := r.Header.Get("Authorization")
+	if len(auth) <= len("ApiKey ") {
+		err := errors.New("Invalid authorization header")
+		respondWithError(w, 401, err.Error())
+		return result, err
+	}
+
+	apikey := auth[len("ApiKey "):]
+	result, err := api.DB.GetUserByKey(r.Context(), apikey)
+	if err != nil {
+		respondWithError(w, 404, "Resource not found")
+		return result, err
+	}
+
+	return result, nil
+}
+
 func (api *apiState) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 	buf, _ := io.ReadAll(r.Body)
 	user := struct {
@@ -91,24 +111,59 @@ func (api *apiState) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, 200, dbResult)
+	respondWithJSON(w, 201, dbResult)
 }
 
 func (api *apiState) GetUsersHandler(w http.ResponseWriter, r *http.Request) {
-	auth := r.Header.Get("Authorization")
-	if len(auth) <= len("ApiKey ") {
-		respondWithError(w, 401, "Invalid authorization header")
-		return
-	}
-
-	apikey := auth[len("ApiKey "):]
-	result, err := api.DB.GetUserByKey(r.Context(), apikey)
+	result, err := api.UserAuth(w, r)
 	if err != nil {
-		respondWithError(w, 404, "Not found")
+		return
+	}
+	respondWithJSON(w, 200, result)
+}
+
+func (api *apiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := api.UserAuth(w, r)
+	if err != nil {
 		return
 	}
 
-	respondWithJSON(w, 200, result)
+	buf, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	var params struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	}
+	err = json.Unmarshal(buf, &params)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, 400, "Malformed request body")
+		return
+	}
+
+	feedParams := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      params.Name,
+		Url:       params.URL,
+		UserID:    user.ID,
+	}
+
+	feed, err := api.DB.CreateFeed(r.Context(), feedParams)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	respondWithJSON(w, 201, feed)
 }
 
 func main() {
@@ -146,6 +201,7 @@ func main() {
 	v1Router.Get("/error", errorHandler)
 	v1Router.Post("/users", api.PostUsersHandler)
 	v1Router.Get("/users", api.GetUsersHandler)
+	v1Router.Post("/feeds", api.PostFeedsHandler)
 	router.Mount("/v1", v1Router)
 
 	server.Addr = "localhost:" + os.Getenv("PORT")
