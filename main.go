@@ -79,7 +79,7 @@ func (api *apiState) UserAuth(w http.ResponseWriter, r *http.Request) (database.
 	apikey := auth[len("ApiKey "):]
 	result, err := api.DB.GetUserByKey(r.Context(), apikey)
 	if err != nil {
-		respondWithError(w, 404, "Resource not found")
+		respondWithError(w, 401, "Unauthorized")
 		return result, err
 	}
 
@@ -97,11 +97,12 @@ func (api *apiState) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
 	newUser := database.CreateUserParams{
 		ID:        uuid.New(),
 		Name:      user.Name,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	dbResult, err := api.DB.CreateUser(r.Context(), newUser)
@@ -147,10 +148,11 @@ func (api *apiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	now := time.Now()
 	feedParams := database.CreateFeedParams{
 		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 		Name:      params.Name,
 		Url:       params.URL,
 		UserID:    user.ID,
@@ -168,7 +170,26 @@ func (api *apiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, 201, feed)
+	ff, err := api.DB.FollowFeed(r.Context(), database.FollowFeedParams{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	if err != nil {
+		respondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	var payload struct {
+		Feed database.Feed       `json:"feed"`
+		FF   database.FeedFollow `json:"feed_follow"`
+	}
+	payload.Feed = feed
+	payload.FF = ff
+
+	respondWithJSON(w, 201, payload)
 }
 
 func (api *apiState) GetFeedsHandler(w http.ResponseWriter, r *http.Request) {
@@ -178,6 +199,87 @@ func (api *apiState) GetFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, 200, feeds)
+}
+
+func (api *apiState) PostFeedFollowsHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := api.UserAuth(w, r)
+	if err != nil {
+		return
+	}
+
+	buf, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	var params struct {
+		FeedID uuid.UUID `json:"feed_id"`
+	}
+	if err = json.Unmarshal(buf, &params); err != nil {
+		respondWithError(w, 400, "Malformed request body")
+		return
+	}
+
+	now := time.Now()
+	ff, err := api.DB.FollowFeed(r.Context(), database.FollowFeedParams{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		FeedID:    params.FeedID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "duplciate key") {
+			respondWithError(w, 409, "Duplicate feed follow")
+		} else {
+			respondWithError(w, 500, "Internal server error")
+		}
+	}
+
+	respondWithJSON(w, 201, ff)
+}
+
+func (api *apiState) DeleteFeedFollowHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := api.UserAuth(w, r)
+	if err != nil {
+		return
+	}
+
+	ffidStr := chi.URLParam(r, "feedFollowID")
+	ffID, err := uuid.Parse(ffidStr)
+	if err != nil {
+		respondWithError(w, 400, "Invalid feed follow ID")
+		return
+	}
+
+	err = api.DB.UnfollowFeed(r.Context(), database.UnfollowFeedParams{
+		UserID: user.ID,
+		ID:     ffID,
+	})
+	if err != nil {
+		respondWithError(w, 409, err.Error())
+		return
+	}
+
+	respondWithJSON(w, 200, "OK")
+}
+
+func (api *apiState) GetFeedFollowsHandler(w http.ResponseWriter, r *http.Request) {
+	user, err := api.UserAuth(w, r)
+	if err != nil {
+		return
+	}
+
+	ff, err := api.DB.GetUserFollows(r.Context(), user.ID)
+	if err != nil {
+		respondWithError(w, 500, "Internal server error")
+		return
+	}
+
+	respondWithJSON(w, 200, ff)
 }
 
 func main() {
@@ -213,10 +315,16 @@ func main() {
 	v1Router = chi.NewRouter()
 	v1Router.Get("/readiness", readinessHandler)
 	v1Router.Get("/error", errorHandler)
+
 	v1Router.Post("/users", api.PostUsersHandler)
 	v1Router.Get("/users", api.GetUsersHandler)
+
 	v1Router.Post("/feeds", api.PostFeedsHandler)
 	v1Router.Get("/feeds", api.GetFeedsHandler)
+
+	v1Router.Post("/feed_follows", api.PostFeedFollowsHandler)
+	v1Router.Get("/feed_follows", api.GetFeedFollowsHandler)
+	v1Router.Delete("/feed_follows/{feedFollowID}", api.DeleteFeedFollowHandler)
 	router.Mount("/v1", v1Router)
 
 	server.Addr = "localhost:" + os.Getenv("PORT")
