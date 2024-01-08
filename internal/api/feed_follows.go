@@ -51,7 +51,7 @@ func (api *ApiState) PostFeedFollowsHandler(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	respondWithJSON(w, 201, ff)
+	respondWithJSON(w, 201, dbToAPI(ff))
 }
 
 func (api *ApiState) DeleteFeedFollowHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,5 +91,5 @@ func (api *ApiState) GetFeedFollowsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	respondWithJSON(w, 200, ff)
+	respondWithJSON(w, 200, dbToAPI(ff))
 }

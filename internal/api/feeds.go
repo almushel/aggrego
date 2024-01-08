@@ -72,11 +72,11 @@ func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Feed database.Feed       `json:"feed"`
-		FF   database.FeedFollow `json:"feed_follow"`
+		Feed Feed       `json:"feed"`
+		FF   FeedFollow `json:"feed_follow"`
 	}
-	payload.Feed = feed
-	payload.FF = ff
+	payload.Feed = dbToAPI(feed).(Feed)
+	payload.FF = dbToAPI(ff).(FeedFollow)
 
 	respondWithJSON(w, 201, payload)
 }
@@ -87,5 +87,5 @@ func (api *ApiState) GetFeedsHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 500, "Internal server error")
 	}
 
-	respondWithJSON(w, 200, feeds)
+	respondWithJSON(w, 200, dbToAPI(feeds))
 }

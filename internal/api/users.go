@@ -57,7 +57,7 @@ func (api *ApiState) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, 201, dbResult)
+	respondWithJSON(w, 201, dbToAPI(dbResult))
 }
 
 func (api *ApiState) GetUsersHandler(w http.ResponseWriter, r *http.Request) {
@@ -65,5 +65,5 @@ func (api *ApiState) GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	respondWithJSON(w, 200, result)
+	respondWithJSON(w, 200, dbToAPI(result))
 }
