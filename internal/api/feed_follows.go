@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/almushel/aggrego/internal/database"
 	"github.com/go-chi/chi/v5"
@@ -35,13 +34,10 @@ func (api *ApiState) PostFeedFollowsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	now := time.Now()
 	ff, err := api.DB.FollowFeed(r.Context(), database.FollowFeedParams{
-		ID:        uuid.New(),
-		UserID:    user.ID,
-		FeedID:    params.FeedID,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:     uuid.New(),
+		UserID: user.ID,
+		FeedID: params.FeedID,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplciate key") {

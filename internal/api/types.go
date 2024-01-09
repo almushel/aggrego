@@ -29,9 +29,9 @@ func dbToAPI(d interface{}) interface{} {
 		}
 		return result
 	case database.User:
-		return d.(User)
+		return User(d.(database.User))
 	case database.FeedFollow:
-		return d.(FeedFollow)
+		return FeedFollow(d.(database.FeedFollow))
 	}
 
 	return nil

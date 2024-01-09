@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/almushel/aggrego/internal/database"
 	"github.com/google/uuid"
@@ -42,12 +41,9 @@ func (api *ApiState) PostUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
 	newUser := database.CreateUserParams{
-		ID:        uuid.New(),
-		Name:      user.Name,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:   uuid.New(),
+		Name: user.Name,
 	}
 
 	dbResult, err := api.DB.CreateUser(r.Context(), newUser)

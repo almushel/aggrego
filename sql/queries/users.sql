@@ -1,6 +1,6 @@
 -- name: CreateUser :one
-INSERT INTO users (id, created_at, updated_at, name)
-VALUES ($1, $2, $3, $4)
+INSERT INTO users (id, name, created_at, updated_at)
+VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 RETURNING *;
 
 -- name: GetUserByKey :one

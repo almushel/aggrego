@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/almushel/aggrego/internal/database"
 	"github.com/google/uuid"
@@ -37,14 +36,11 @@ func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
 	feedParams := database.CreateFeedParams{
-		ID:        uuid.New(),
-		CreatedAt: now,
-		UpdatedAt: now,
-		Name:      params.Name,
-		Url:       params.URL,
-		UserID:    user.ID,
+		ID:     uuid.New(),
+		Name:   params.Name,
+		Url:    params.URL,
+		UserID: user.ID,
 	}
 
 	feed, err := api.DB.CreateFeed(r.Context(), feedParams)
@@ -60,11 +56,9 @@ func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ff, err := api.DB.FollowFeed(r.Context(), database.FollowFeedParams{
-		ID:        uuid.New(),
-		UserID:    user.ID,
-		FeedID:    feed.ID,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:     uuid.New(),
+		UserID: user.ID,
+		FeedID: feed.ID,
 	})
 	if err != nil {
 		respondWithError(w, 500, "Internal server error")

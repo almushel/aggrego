@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/almushel/aggrego/internal/database"
+	"github.com/almushel/aggrego/internal/api"
 	"github.com/google/uuid"
 )
 
@@ -51,7 +51,7 @@ func TestPostUser(t *testing.T) {
 
 	response := testRequest(t, request, 201, "User post failed")
 
-	var user database.User
+	var user api.User
 	if err = unmarshalResponse(response, &user); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestGetUser(t *testing.T) {
 	request.Header.Add("Authorization", "ApiKey "+apikey)
 	response := testRequest(t, request, 200, "Get user failed")
 
-	var user database.User
+	var user api.User
 	if err := unmarshalResponse(response, &user); err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +81,8 @@ func TestPostFeed(t *testing.T) {
 	response := testRequest(t, request, 201, "Failed to post feed")
 
 	var payload struct {
-		Feed database.Feed       `json:"feed"`
-		FF   database.FeedFollow `json:"feed_follow"`
+		Feed api.Feed       `json:"feed"`
+		FF   api.FeedFollow `json:"feed_follow"`
 	}
 	if err := unmarshalResponse(response, &payload); err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestGetFeeds(t *testing.T) {
 	request, _ := http.NewRequest("GET", apiAddr+"/feeds", nil)
 	response := testRequest(t, request, 200, "Failed to get feeds")
 
-	var feeds []database.Feed
+	var feeds []api.Feed
 	if err := unmarshalResponse(response, &feeds); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestPostFeedFollow(t *testing.T) {
 	request, _ := http.NewRequest("POST", apiAddr+"/users", bytes.NewBuffer(body))
 	response := testRequest(t, request, 201, "Failed to post testUser2")
 
-	var user database.User
+	var user api.User
 	if err := unmarshalResponse(response, &user); err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestPostFeedFollow(t *testing.T) {
 		request.Header.Add("Authorization", "ApiKey "+apikey)
 		response := testRequest(t, request, 201, "Post feed follow failed")
 
-		var ff database.FeedFollow
+		var ff api.FeedFollow
 		if err := unmarshalResponse(response, &ff); err != nil {
 			t.Fatal(err)
 		}
@@ -134,7 +134,7 @@ func TestGetFeedFollows(t *testing.T) {
 	request.Header.Add("Authorization", "ApiKey "+apikey)
 	response := testRequest(t, request, 200, "Failed to get feed follows")
 
-	var ff []database.FeedFollow
+	var ff []api.FeedFollow
 	if err := unmarshalResponse(response, &ff); err != nil {
 		t.Fatal(err)
 	}

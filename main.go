@@ -17,7 +17,7 @@ func parseEnv() map[string]string {
 	result := make(map[string]string)
 	envBuf, err := os.ReadFile(".env")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	for _, line := range strings.Split(string(envBuf), "\n") {
