@@ -14,7 +14,7 @@ import (
 const createFeed = `-- name: CreateFeed :one
 INSERT INTO feeds(id, created_at, updated_at, name, url, user_id)
 VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $2, $3, $4)
-RETURNING id, created_at, updated_at, name, url, user_id, last_modified_at
+RETURNING id, created_at, updated_at, name, url, user_id, last_fetched_at
 `
 
 type CreateFeedParams struct {
@@ -39,13 +39,13 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 		&i.Name,
 		&i.Url,
 		&i.UserID,
-		&i.LastModifiedAt,
+		&i.LastFetchedAt,
 	)
 	return i, err
 }
 
 const getFeeds = `-- name: GetFeeds :many
-SELECT id, created_at, updated_at, name, url, user_id, last_modified_at FROM feeds
+SELECT id, created_at, updated_at, name, url, user_id, last_fetched_at FROM feeds
 `
 
 func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
@@ -64,7 +64,49 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
 			&i.Name,
 			&i.Url,
 			&i.UserID,
-			&i.LastModifiedAt,
+			&i.LastFetchedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getStaleFeeds = `-- name: GetStaleFeeds :many
+SELECT id, created_at, updated_at, name, url, user_id, last_fetched_at FROM feeds
+ORDER BY 
+CASE 
+	WHEN last_fetched_at IS NULL THEN 1
+	ELSE 2
+END DESC,
+last_fetched_at ASC
+LIMIT $1
+`
+
+func (q *Queries) GetStaleFeeds(ctx context.Context, limit int32) ([]Feed, error) {
+	rows, err := q.db.QueryContext(ctx, getStaleFeeds, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Feed
+	for rows.Next() {
+		var i Feed
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Name,
+			&i.Url,
+			&i.UserID,
+			&i.LastFetchedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -81,7 +123,7 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]Feed, error) {
 
 const markFeedFetched = `-- name: MarkFeedFetched :exec
 UPDATE feeds
-SET updated_at=CURRENT_TIMESTAMP, last_modified_at=CURRENT_TIMESTAMP
+SET updated_at=CURRENT_TIMESTAMP, last_fetched_at=CURRENT_TIMESTAMP
 WHERE id=$1
 `
 

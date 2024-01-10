@@ -74,7 +74,7 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestPostFeed(t *testing.T) {
-	body := []byte(`{"name": "testfeed", "url": "http://test.com/` + fmt.Sprint(uuid.New()) + `"}`)
+	body := []byte(`{"name": "testfeed", "url": "http://localhost/` + fmt.Sprint(uuid.New()) + `"}`)
 	request, _ := http.NewRequest("POST", apiAddr+"/feeds", bytes.NewBuffer(body))
 	request.Header.Add("Authorization", "ApiKey "+apikey)
 

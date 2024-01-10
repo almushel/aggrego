@@ -8,5 +8,15 @@ SELECT * FROM feeds;
 
 -- name: MarkFeedFetched :exec
 UPDATE feeds
-SET updated_at=CURRENT_TIMESTAMP, last_modified_at=CURRENT_TIMESTAMP
+SET updated_at=CURRENT_TIMESTAMP, last_fetched_at=CURRENT_TIMESTAMP
 WHERE id=$1;
+
+-- name: GetStaleFeeds :many
+SELECT * FROM feeds
+ORDER BY 
+CASE 
+	WHEN last_fetched_at IS NULL THEN 1
+	ELSE 2
+END DESC,
+last_fetched_at ASC
+LIMIT $1;

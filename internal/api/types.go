@@ -25,7 +25,7 @@ func dbToAPI(d interface{}) interface{} {
 	case database.Feed:
 		d2, _ := d.(database.Feed)
 		result := Feed{
-			d2.ID, d2.CreatedAt, d2.UpdatedAt, d2.Name, d2.Url, d2.UserID, d2.LastModifiedAt.Time,
+			d2.ID, d2.CreatedAt, d2.UpdatedAt, d2.Name, d2.Url, d2.UserID, d2.LastFetchedAt.Time,
 		}
 		return result
 	case database.User:
