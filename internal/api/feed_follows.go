@@ -81,11 +81,16 @@ func (api *ApiState) GetFeedFollowsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ff, err := api.DB.GetUserFollows(r.Context(), user.ID)
+	dbResult, err := api.DB.GetUserFollows(r.Context(), user.ID)
 	if err != nil {
 		respondWithError(w, 500, "Internal server error")
 		return
 	}
 
-	respondWithJSON(w, 200, dbToAPI(ff))
+	var result []FeedFollow
+	for _, ff := range dbResult {
+		result = append(result, dbToAPI(ff).(FeedFollow))
+	}
+
+	respondWithJSON(w, 200, result)
 }

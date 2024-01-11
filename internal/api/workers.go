@@ -1,0 +1,64 @@
+package api
+
+import (
+	"context"
+	"database/sql"
+	"log"
+	"sync"
+	"time"
+
+	"github.com/almushel/aggrego/internal/database"
+	"github.com/almushel/aggrego/internal/feeds"
+	"github.com/google/uuid"
+)
+
+const (
+	staleFeedstoFetch = 10
+	feedFetchInterval = 15 * time.Second
+)
+
+func (api *ApiState) StartFetchWorker() {
+	for {
+		log.Println("Selecting stale feeds")
+		dbFeeds, err := api.DB.GetStaleFeeds(context.TODO(), staleFeedstoFetch)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("Fetching %d feeds", len(dbFeeds))
+			wg := new(sync.WaitGroup)
+			for _, feed := range dbFeeds {
+				wg.Add(1)
+
+				go func(f database.Feed, w *sync.WaitGroup) {
+					defer w.Done()
+
+					rss, err := feeds.FetchRSSFeed(f.Url)
+					if err != nil {
+						log.Println(err)
+					} else {
+						for _, post := range rss.Channel.Items {
+							dbPost, err := api.DB.CreatePost(context.TODO(), database.CreatePostParams{
+								ID:          uuid.New(),
+								Title:       post.Title,
+								Url:         post.Link,
+								Description: post.Description,
+								PublishedAt: sql.NullTime{Valid: true, Time: time.Now()},
+								FeedID:      f.ID,
+							})
+							if err != nil {
+								log.Println(err)
+							} else {
+								log.Println(dbPost.Title)
+							}
+						}
+					}
+				}(feed, wg)
+			}
+
+			wg.Wait()
+		}
+
+		log.Println("Waiting")
+		time.Sleep(feedFetchInterval)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/almushel/aggrego/internal/api"
@@ -17,8 +18,17 @@ const (
 )
 
 var apikey string
+var feedURLs []string
 var feedIDs []uuid.UUID
 var feedFollowIDs []uuid.UUID
+
+func init() {
+	for key, val := range parseEnv() {
+		if key == "TESTFEEDS" {
+			feedURLs = strings.Split(val, ",")
+		}
+	}
+}
 
 func testRequest(t *testing.T, request *http.Request, codeExpected int, failureMsg string) *http.Response {
 	response, err := http.DefaultClient.Do(request)
@@ -74,18 +84,20 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestPostFeed(t *testing.T) {
-	body := []byte(`{"name": "testfeed", "url": "http://localhost/` + fmt.Sprint(uuid.New()) + `"}`)
-	request, _ := http.NewRequest("POST", apiAddr+"/feeds", bytes.NewBuffer(body))
-	request.Header.Add("Authorization", "ApiKey "+apikey)
+	for _, url := range feedURLs {
+		body := []byte(`{"name":"testfeed", "url":"` + url + `"}`)
+		request, _ := http.NewRequest("POST", apiAddr+"/feeds", bytes.NewBuffer(body))
+		request.Header.Add("Authorization", "ApiKey "+apikey)
 
-	response := testRequest(t, request, 201, "Failed to post feed")
+		response := testRequest(t, request, 201, "Failed to post feed")
 
-	var payload struct {
-		Feed api.Feed       `json:"feed"`
-		FF   api.FeedFollow `json:"feed_follow"`
-	}
-	if err := unmarshalResponse(response, &payload); err != nil {
-		t.Fatal(err)
+		var payload struct {
+			Feed api.Feed       `json:"feed"`
+			FF   api.FeedFollow `json:"feed_follow"`
+		}
+		if err := unmarshalResponse(response, &payload); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -101,6 +113,8 @@ func TestGetFeeds(t *testing.T) {
 	for _, feed := range feeds {
 		feedIDs = append(feedIDs, feed.ID)
 	}
+	//log.Print("Feeds: ")
+	//log.Println(feedIDs)
 }
 
 func TestPostFeedFollow(t *testing.T) {
@@ -137,6 +151,17 @@ func TestGetFeedFollows(t *testing.T) {
 	var ff []api.FeedFollow
 	if err := unmarshalResponse(response, &ff); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetPosts(t *testing.T) {
+	request, _ := http.NewRequest("GET", apiAddr+"/posts", nil)
+	request.Header.Add("Authorization", "ApiKey "+apikey)
+	response := testRequest(t, request, 200, "Failed to get user posts")
+
+	var posts []api.Post
+	if err := unmarshalResponse(response, &posts); err != nil {
+		t.Fatal("Failed to unmarshel user posts")
 	}
 }
 

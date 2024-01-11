@@ -81,5 +81,9 @@ func (api *ApiState) GetFeedsHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 500, "Internal server error")
 	}
 
-	respondWithJSON(w, 200, dbToAPI(feeds))
+	var result []Feed
+	for _, f := range feeds {
+		result = append(result, dbToAPI(f).(Feed))
+	}
+	respondWithJSON(w, 200, result)
 }

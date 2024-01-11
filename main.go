@@ -1,25 +1,16 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	_ "github.com/lib/pq"
 
 	. "github.com/almushel/aggrego/internal/api"
-	"github.com/almushel/aggrego/internal/database"
-	"github.com/almushel/aggrego/internal/feeds"
-)
-
-const (
-	staleFeedstoFetch = 10
 )
 
 func parseEnv() map[string]string {
@@ -41,38 +32,6 @@ func parseEnv() map[string]string {
 	}
 
 	return result
-}
-
-func startFetchWorker(api *ApiState) {
-	for {
-		log.Println("Selecting stale feeds")
-		dbFeeds, err := api.DB.GetStaleFeeds(context.TODO(), staleFeedstoFetch)
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Printf("Fetching %d feeds", len(dbFeeds))
-			wg := new(sync.WaitGroup)
-			for _, feed := range dbFeeds {
-				go func(f database.Feed, w *sync.WaitGroup) {
-					w.Add(1)
-					defer w.Done()
-
-					rss, err := feeds.FetchRSSFeed(f.Url)
-					if err != nil {
-						log.Println(err)
-					} else {
-						for _, post := range rss.Channel.Items {
-							println(post.Title)
-						}
-					}
-				}(feed, wg)
-			}
-
-			wg.Wait()
-		}
-
-		time.Sleep(60 * time.Second)
-	}
 }
 
 func main() {
@@ -119,10 +78,12 @@ func main() {
 	v1Router.Delete("/feed_follows/{feedFollowID}", api.DeleteFeedFollowHandler)
 	router.Mount("/v1", v1Router)
 
+	v1Router.Get("/posts", api.GetPostsHandler)
+
 	server.Addr = "localhost:" + os.Getenv("PORT")
 	server.Handler = router
 
 	log.Println("Server listening at port " + os.Getenv("PORT"))
-	go startFetchWorker(api)
+	go api.StartFetchWorker()
 	log.Fatal(server.ListenAndServe())
 }

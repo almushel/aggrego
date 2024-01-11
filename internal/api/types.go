@@ -19,6 +19,7 @@ type Feed struct {
 
 type User database.User
 type FeedFollow database.FeedFollow
+type Post database.Post
 
 func dbToAPI(d interface{}) interface{} {
 	switch d.(type) {
@@ -32,6 +33,8 @@ func dbToAPI(d interface{}) interface{} {
 		return User(d.(database.User))
 	case database.FeedFollow:
 		return FeedFollow(d.(database.FeedFollow))
+	case database.Post:
+		return Post(d.(database.Post))
 	}
 
 	return nil

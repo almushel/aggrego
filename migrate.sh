@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 conn=`grep -G "^CONN=" .env | cut -d= -f2`
 pushd sql/schema
