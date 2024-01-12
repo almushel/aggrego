@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 const (
 	staleFeedstoFetch = 10
-	feedFetchInterval = 15 * time.Second
+	feedFetchInterval = 60 * time.Second
 )
 
 func (api *ApiState) StartFetchWorker() {
@@ -37,7 +38,7 @@ func (api *ApiState) StartFetchWorker() {
 						log.Println(err)
 					} else {
 						for _, post := range rss.Channel.Items {
-							dbPost, err := api.DB.CreatePost(context.TODO(), database.CreatePostParams{
+							_, err := api.DB.CreatePost(context.TODO(), database.CreatePostParams{
 								ID:          uuid.New(),
 								Title:       post.Title,
 								Url:         post.Link,
@@ -45,10 +46,8 @@ func (api *ApiState) StartFetchWorker() {
 								PublishedAt: sql.NullTime{Valid: true, Time: time.Now()},
 								FeedID:      f.ID,
 							})
-							if err != nil {
+							if err != nil && !strings.Contains(err.Error(), "duplicate key value") {
 								log.Println(err)
-							} else {
-								log.Println(dbPost.Title)
 							}
 						}
 					}
@@ -58,7 +57,6 @@ func (api *ApiState) StartFetchWorker() {
 			wg.Wait()
 		}
 
-		log.Println("Waiting")
 		time.Sleep(feedFetchInterval)
 	}
 }
