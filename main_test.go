@@ -3,34 +3,48 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
-	"github.com/almushel/aggrego/internal/api"
 	"github.com/google/uuid"
+
+	"github.com/almushel/aggrego/internal/api"
+	"github.com/almushel/aggrego/internal/util"
 )
 
-const (
-	apiAddr = "http://localhost:8080/v1"
-)
-
+var apiAddr string
 var apikey string
 var feedURLs []string
 var feedIDs []uuid.UUID
 var feedFollowIDs []uuid.UUID
 
-func init() {
-	for key, val := range parseEnv() {
-		if key == "TESTFEEDS" {
-			feedURLs = strings.Split(val, ",")
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if !testing.Short() {
+		for key, val := range util.ParseEnvFile(".env") {
+			if key == "TESTFEEDS" {
+				feedURLs = strings.Split(val, ",")
+			} else if key == "PORT" {
+				apiAddr = "http://:" + val + "/v1"
+			}
 		}
 	}
+	if apiAddr == "" {
+		apiAddr = "http://localhost:8080"
+	}
+	exitVal := m.Run()
+	os.Exit(exitVal)
 }
 
 func testRequest(t *testing.T, request *http.Request, codeExpected int, failureMsg string) *http.Response {
+	if testing.Short() {
+		t.Skip()
+	}
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal(err)
@@ -84,20 +98,26 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestPostFeed(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	for _, url := range feedURLs {
-		body := []byte(`{"name":"testfeed", "url":"` + url + `"}`)
-		request, _ := http.NewRequest("POST", apiAddr+"/feeds", bytes.NewBuffer(body))
-		request.Header.Add("Authorization", "ApiKey "+apikey)
+		t.Run("Post "+url, func(t *testing.T) {
+			body := []byte(`{"name":"testfeed", "url":"` + url + `"}`)
+			request, _ := http.NewRequest("POST", apiAddr+"/feeds", bytes.NewBuffer(body))
+			request.Header.Add("Authorization", "ApiKey "+apikey)
 
-		response := testRequest(t, request, 201, "Failed to post feed")
+			response := testRequest(t, request, 201, "Failed to post feed")
 
-		var payload struct {
-			Feed api.Feed       `json:"feed"`
-			FF   api.FeedFollow `json:"feed_follow"`
-		}
-		if err := unmarshalResponse(response, &payload); err != nil {
-			t.Fatal(err)
-		}
+			var payload struct {
+				Feed api.Feed       `json:"feed"`
+				FF   api.FeedFollow `json:"feed_follow"`
+			}
+			if err := unmarshalResponse(response, &payload); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 
@@ -113,8 +133,6 @@ func TestGetFeeds(t *testing.T) {
 	for _, feed := range feeds {
 		feedIDs = append(feedIDs, feed.ID)
 	}
-	//log.Print("Feeds: ")
-	//log.Println(feedIDs)
 }
 
 func TestPostFeedFollow(t *testing.T) {
@@ -129,17 +147,20 @@ func TestPostFeedFollow(t *testing.T) {
 	apikey = user.Apikey
 
 	for _, fid := range feedIDs {
-		body = []byte(`{"feed_id":"` + fmt.Sprint(fid) + `"}`)
-		request, _ = http.NewRequest("POST", apiAddr+"/feed_follows", bytes.NewBuffer(body))
-		request.Header.Add("Authorization", "ApiKey "+apikey)
-		response := testRequest(t, request, 201, "Post feed follow failed")
+		fidStr := fmt.Sprint(fid)
+		t.Run("Follow feed "+fidStr, func(t *testing.T) {
+			body = []byte(`{"feed_id":"` + fidStr + `"}`)
+			request, _ = http.NewRequest("POST", apiAddr+"/feed_follows", bytes.NewBuffer(body))
+			request.Header.Add("Authorization", "ApiKey "+apikey)
+			response := testRequest(t, request, 201, "Post feed follow failed")
 
-		var ff api.FeedFollow
-		if err := unmarshalResponse(response, &ff); err != nil {
-			t.Fatal(err)
-		}
+			var ff api.FeedFollow
+			if err := unmarshalResponse(response, &ff); err != nil {
+				t.Fatal(err)
+			}
 
-		feedFollowIDs = append(feedFollowIDs, ff.ID)
+			feedFollowIDs = append(feedFollowIDs, ff.ID)
+		})
 	}
 }
 
@@ -166,9 +187,16 @@ func TestGetPosts(t *testing.T) {
 }
 
 func TestDeleteFeedFollows(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	for _, ffID := range feedFollowIDs {
-		request, _ := http.NewRequest("DELETE", apiAddr+"/feed_follows/{"+fmt.Sprint(ffID)+"}", nil)
-		request.Header.Add("Authorization", "ApiKey "+apikey)
-		testRequest(t, request, 200, "Failed to delete feed follow")
+		ffidStr := fmt.Sprint(ffID)
+		t.Run("Unfollow feed "+ffidStr, func(t *testing.T) {
+			request, _ := http.NewRequest("DELETE", apiAddr+"/feed_follows/{"+ffidStr+"}", nil)
+			request.Header.Add("Authorization", "ApiKey "+apikey)
+			testRequest(t, request, 200, "Failed to delete feed follow")
+		})
 	}
 }

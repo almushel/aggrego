@@ -4,35 +4,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	_ "github.com/lib/pq"
 
 	. "github.com/almushel/aggrego/internal/api"
+	"github.com/almushel/aggrego/internal/util"
 )
-
-func parseEnv() map[string]string {
-	result := make(map[string]string)
-	envBuf, err := os.ReadFile(".env")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, line := range strings.Split(string(envBuf), "\n") {
-		before, after, found := strings.Cut(line, "=")
-		if found {
-			key := strings.TrimSpace(before)
-			val := strings.TrimSpace(after)
-			if len(key) > 0 && len(val) > 0 {
-				result[key] = val
-			}
-		}
-	}
-
-	return result
-}
 
 func main() {
 	var err error
@@ -41,7 +20,7 @@ func main() {
 	var api *ApiState
 	var server http.Server
 
-	for key, val := range parseEnv() {
+	for key, val := range util.ParseEnvFile(".env") {
 		os.Setenv(key, val)
 	}
 
@@ -58,7 +37,7 @@ func main() {
 
 	corsOptions = cors.Options{
 		AllowCredentials: true,
-		AllowedOrigins:   []string{"localhost"},
+		AllowedOrigins:   []string{""},
 		//AllowedMethods: []{},
 	}
 	router.Use(cors.Handler(corsOptions))
@@ -80,7 +59,7 @@ func main() {
 
 	v1Router.Get("/posts", api.GetPostsHandler)
 
-	server.Addr = "localhost:" + os.Getenv("PORT")
+	server.Addr = ":" + os.Getenv("PORT")
 	server.Handler = router
 
 	log.Println("Server listening at port " + os.Getenv("PORT"))

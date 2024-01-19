@@ -1,19 +1,24 @@
 package feeds
 
 import (
-	"os"
 	"strings"
 	"testing"
+
+	"github.com/almushel/aggrego/internal/util"
 )
 
-func TestFeed(t *testing.T) {
+func TestFetchFeed(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	var feeds []string
-	if buf, err := os.ReadFile("testfeeds.env"); err != nil {
-		t.Fatal(err)
+	env := util.ParseEnvFile("../../.env")
+
+	if testFeeds, ok := env["TESTFEEDS"]; ok {
+		feeds = strings.Split(testFeeds, ",")
 	} else {
-		for _, feed := range strings.Split(string(buf), "\n") {
-			feeds = append(feeds, feed)
-		}
+		t.Fatal("No testfeeds in .env")
 	}
 
 	if len(feeds) == 0 {
