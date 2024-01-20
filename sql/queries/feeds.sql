@@ -4,7 +4,9 @@ VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $2, $3, $4)
 RETURNING *;
 
 -- name: GetFeeds :many
-SELECT * FROM feeds;
+SELECT * FROM feeds
+OFFSET $1
+LIMIT $2;
 
 -- name: MarkFeedFetched :exec
 UPDATE feeds

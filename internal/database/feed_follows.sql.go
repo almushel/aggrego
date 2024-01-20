@@ -39,10 +39,18 @@ func (q *Queries) FollowFeed(ctx context.Context, arg FollowFeedParams) (FeedFol
 const getUserFollows = `-- name: GetUserFollows :many
 SELECT id, user_id, feed_id, created_at, updated_at FROM feed_follows
 WHERE user_id = $1
+OFFSET $2
+LIMIT $3
 `
 
-func (q *Queries) GetUserFollows(ctx context.Context, userID uuid.UUID) ([]FeedFollow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserFollows, userID)
+type GetUserFollowsParams struct {
+	UserID uuid.UUID
+	Offset int32
+	Limit  int32
+}
+
+func (q *Queries) GetUserFollows(ctx context.Context, arg GetUserFollowsParams) ([]FeedFollow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserFollows, arg.UserID, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

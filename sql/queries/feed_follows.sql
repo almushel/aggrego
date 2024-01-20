@@ -8,4 +8,6 @@ DELETE FROM feed_follows WHERE user_id=$1 and id = $2;
 
 -- name: GetUserFollows :many
 SELECT * FROM feed_follows
-WHERE user_id = $1;
+WHERE user_id = $1
+OFFSET $2
+LIMIT $3;

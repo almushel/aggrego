@@ -12,6 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	defaultFFPageSize = 20
+)
+
 func (api *ApiState) PostFeedFollowsHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := api.UserAuth(w, r)
 	if err != nil {
@@ -81,7 +85,19 @@ func (api *ApiState) GetFeedFollowsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	dbResult, err := api.DB.GetUserFollows(r.Context(), user.ID)
+	var offset int32 = 0
+	if val, _ := getIntQueryParam(r, "offset"); val >= 0 {
+		offset = int32(val)
+	}
+
+	var limit int32 = defaultFFPageSize
+	if val, _ := getIntQueryParam(r, "limit"); val > 0 {
+		limit = int32(val)
+	}
+
+	dbResult, err := api.DB.GetUserFollows(r.Context(), database.GetUserFollowsParams{
+		UserID: user.ID, Offset: offset, Limit: limit,
+	})
 	if err != nil {
 		respondWithError(w, 500, "Internal server error")
 		return

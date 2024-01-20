@@ -11,6 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	defaultFeedsPageSize = 20
+)
+
 func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := api.UserAuth(w, r)
 	if err != nil {
@@ -76,7 +80,20 @@ func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *ApiState) GetFeedsHandler(w http.ResponseWriter, r *http.Request) {
-	feeds, err := api.DB.GetFeeds(r.Context())
+	var offset int32 = 0
+	var limit int32 = defaultFeedsPageSize
+
+	if val, _ := getIntQueryParam(r, "offset"); val >= 0 {
+		offset = int32(val)
+	}
+
+	if val, _ := getIntQueryParam(r, "limit"); val > 0 {
+		limit = int32(val)
+	}
+
+	feeds, err := api.DB.GetFeeds(r.Context(), database.GetFeedsParams{
+		Offset: offset, Limit: limit,
+	})
 	if err != nil {
 		respondWithError(w, 500, "Internal server error")
 	}

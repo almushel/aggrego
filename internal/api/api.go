@@ -3,7 +3,9 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/almushel/aggrego/internal/database"
 )
@@ -45,4 +47,22 @@ func ReadinessHandler(w http.ResponseWriter, r *http.Request) {
 
 func ErrorHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithError(w, 500, "Internal server error")
+}
+
+var ErrParamNotFound error = errors.New("query parameter not found")
+
+func getIntQueryParam(r *http.Request, name string) (int, error) {
+	result := -1
+	if o := r.URL.Query().Get("offset"); len(o) > 0 {
+		off, err := strconv.Atoi(o)
+		if err != nil {
+			return result, err
+		} else {
+			result = off
+		}
+	} else {
+		return result, ErrParamNotFound
+	}
+
+	return result, nil
 }

@@ -15,7 +15,7 @@ func (api *ApiState) UserAuth(w http.ResponseWriter, r *http.Request) (database.
 	var result database.User
 	auth := r.Header.Get("Authorization")
 	if len(auth) <= len("ApiKey ") {
-		err := errors.New("Invalid authorization header")
+		err := errors.New("invalid authorization header")
 		respondWithError(w, 401, err.Error())
 		return result, err
 	}

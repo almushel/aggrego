@@ -58,16 +58,18 @@ WHERE feed_id IN (
 	FROM feed_follows
 	WHERE user_id=$1
 )
-LIMIT $2
+OFFSET $2
+LIMIT $3
 `
 
 type GetPostsByUserParams struct {
 	UserID uuid.UUID
+	Offset int32
 	Limit  int32
 }
 
 func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) ([]Post, error) {
-	rows, err := q.db.QueryContext(ctx, getPostsByUser, arg.UserID, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, getPostsByUser, arg.UserID, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

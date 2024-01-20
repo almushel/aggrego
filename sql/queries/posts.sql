@@ -11,4 +11,5 @@ WHERE feed_id IN (
 	FROM feed_follows
 	WHERE user_id=$1
 )
-LIMIT $2;
+OFFSET $2
+LIMIT $3;
