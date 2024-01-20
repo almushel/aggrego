@@ -51,6 +51,7 @@ func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		// NOTE: Is there a better what to handle these?
+		// Should this succeed if the feed already exists?
 		if strings.Contains(err.Error(), "duplicate key value") {
 			respondWithError(w, 409, "Duplicate feed URL")
 		} else {

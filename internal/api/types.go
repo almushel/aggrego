@@ -32,20 +32,18 @@ type Post struct {
 }
 
 func dbToAPI(d interface{}) interface{} {
-	switch d.(type) {
+	switch d := d.(type) {
 	case database.Feed:
-		d2, _ := d.(database.Feed)
 		return Feed{
-			d2.ID, d2.CreatedAt, d2.UpdatedAt, d2.Name, d2.Url, d2.UserID, d2.LastFetchedAt.Time,
+			d.ID, d.CreatedAt, d.UpdatedAt, d.Name, d.Url, d.UserID, d.LastFetchedAt.Time,
 		}
 	case database.User:
-		return User(d.(database.User))
+		return User(d)
 	case database.FeedFollow:
-		return FeedFollow(d.(database.FeedFollow))
+		return FeedFollow(d)
 	case database.Post:
-		d2, _ := d.(database.Post)
 		return Post{
-			d2.ID, d2.CreatedAt, d2.UpdatedAt, d2.Title, d2.Url, d2.Description, d2.PublishedAt.Time, d2.FeedID,
+			d.ID, d.CreatedAt, d.UpdatedAt, d.Title, d.Url, d.Description, d.PublishedAt.Time, d.FeedID,
 		}
 	}
 

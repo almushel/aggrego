@@ -53,7 +53,7 @@ var ErrParamNotFound error = errors.New("query parameter not found")
 
 func getIntQueryParam(r *http.Request, name string) (int, error) {
 	result := -1
-	if o := r.URL.Query().Get("offset"); len(o) > 0 {
+	if o := r.URL.Query().Get(name); len(o) > 0 {
 		off, err := strconv.Atoi(o)
 		if err != nil {
 			return result, err

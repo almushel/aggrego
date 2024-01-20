@@ -176,14 +176,34 @@ func TestGetFeedFollows(t *testing.T) {
 }
 
 func TestGetPosts(t *testing.T) {
-	request, _ := http.NewRequest("GET", apiAddr+"/posts", nil)
-	request.Header.Add("Authorization", "ApiKey "+apikey)
-	response := testRequest(t, request, 200, "Failed to get user posts")
+	var offset int = 0
+	var limit int = 20
 
-	var posts []api.Post
-	if err := unmarshalResponse(response, &posts); err != nil {
-		t.Fatal("Failed to unmarshel user posts")
+	for {
+		var pageLength int
+		name := fmt.Sprintf("Get posts %d-%d", offset, offset+limit)
+		t.Run(name, func(t *testing.T) {
+			requestURL := fmt.Sprintf("%s/posts?offset=%d&limit=%d", apiAddr, offset, limit)
+			request, _ := http.NewRequest("GET", requestURL, nil)
+			request.Header.Add("Authorization", "ApiKey "+apikey)
+			response := testRequest(t, request, 200, "Failed to get user posts")
+
+			var posts []api.Post
+			if err := unmarshalResponse(response, &posts); err != nil {
+				t.Fatal("Failed to unmarshel user posts")
+			}
+			pageLength = len(posts)
+		})
+
+		if pageLength > limit {
+			t.Fatalf("Page length wanted: %d, received: %d", limit, pageLength)
+		} else if pageLength < limit {
+			break
+		}
+
+		offset += pageLength
 	}
+
 }
 
 func TestDeleteFeedFollows(t *testing.T) {
