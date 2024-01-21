@@ -1,7 +1,7 @@
 package main
 
 import (
-	"embed"
+	//"embed"
 	"log"
 	"net/http"
 	"os"
@@ -14,11 +14,11 @@ import (
 	"github.com/almushel/aggrego/internal/util"
 )
 
-//go:embed html
-var content embed.FS
+/* //go:embed html */
+//var content embed.FS
 
 func frontendHandler(w http.ResponseWriter, r *http.Request) {
-	indexPage, err := content.ReadFile("html/index.html")
+	indexPage, err := os.ReadFile("html/index.html")
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(500)

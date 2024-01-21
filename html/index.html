@@ -7,21 +7,26 @@
   </head>
   <body>
 		<h1>Aggrego</h1>
-		<div id="new-user-form">
-			<label for="new-user-name">Username:</label>
-			<input id="new-user-name"/>
-
+		<div id="logged-out">
+			<label for="name-input">Create User:</label>
+			<input id="name-input"/>
 			<button onclick="createUser()">Create</button>
+
+			<label for="apikey-input">Login with API Key</label>
+			<input id="apikey-input"/>
+			<button onclick="loginWithKey()">Login</button>
 		</div>
 
-		<div id="current-user-display" style="display:none">
-
+		<div id="logged-in" style="display:none">
+			<h2 id="current-user">Current user:</h2>
+			<button onclick="logout()">Logout</button>
 		</div>
+
 		<script>
 			const lsKeyName = "aggrego-apikey"
 
 			async function createUser() {
-				const nameInput = document.querySelector("#new-user-name");
+				const nameInput = document.querySelector("#name-input");
 
 				requestBody = {
 					name: nameInput.value
@@ -42,13 +47,12 @@
 				nameInput.value = "";
 
 				login();
-
 			}
 
 			async function login() {
 				const apikey = localStorage.getItem(lsKeyName)
 				if (apikey == null) {
-					return;
+					return false;
 				}
 
 				response = await fetch("/v1/users", {
@@ -57,13 +61,44 @@
 						"Authorization": "ApiKey "+apikey
 					},
 				})
+				if (!response.ok) {
+					return false;
+				}
+
 				rBody = await response.json();
 
-				currentUser = document.getElementById("current-user-display");
-				currentUser.innerText = "Logged in as: " + rBody.name;
-				currentUser.style.display = "block";
+				document.getElementById("current-user").innerText = "Current user: " + rBody.name;
+				document.getElementById("logged-in").style.display = "block";
 
-				const newUserForm = document.getElementById("new-user-form").style.display = "none"
+				document.getElementById("logged-out").style.display = "none";
+
+				return true;
+			}
+
+			async function loginWithKey() {
+				keyInput = document.getElementById("apikey-input");
+				loginKey = keyInput.value
+				if (loginKey.length != 64) {
+					alert("login failed")
+					return
+				}
+
+				localStorage.setItem(lsKeyName, loginKey)
+				success = await login()
+				if (success) {
+					keyInput.value = ""
+				} else {
+					alert("login failed")
+					localStorage.removeItem(lsKeyName)
+				}
+			}
+
+			function logout() {
+				localStorage.removeItem(lsKeyName)
+
+				document.getElementById("logged-in").style.display = "none";
+				document.getElementById("logged-out").style.display = "block";
+
 			}
 		
 			login()
