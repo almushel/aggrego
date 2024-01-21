@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +13,20 @@ import (
 	. "github.com/almushel/aggrego/internal/api"
 	"github.com/almushel/aggrego/internal/util"
 )
+
+//go:embed html
+var content embed.FS
+
+func frontendHandler(w http.ResponseWriter, r *http.Request) {
+	indexPage, err := content.ReadFile("html/index.html")
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		w.Write([]byte("Internal server error"))
+	}
+
+	w.Write(indexPage)
+}
 
 func main() {
 	var err error
@@ -41,6 +56,7 @@ func main() {
 		//AllowedMethods: []{},
 	}
 	router.Use(cors.Handler(corsOptions))
+	router.Mount("/", http.HandlerFunc(frontendHandler))
 
 	v1Router = chi.NewRouter()
 	v1Router.Get("/readiness", ReadinessHandler)
@@ -63,6 +79,6 @@ func main() {
 	server.Handler = router
 
 	log.Println("Server listening at port " + os.Getenv("PORT"))
-	go api.StartFetchWorker()
+	//go api.StartFetchWorker()
 	log.Fatal(server.ListenAndServe())
 }

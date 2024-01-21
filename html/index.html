@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Aggrego: A Feed Aggregator</title>
+  </head>
+  <body>
+		<h1>Aggrego</h1>
+		<div id="new-user-form">
+			<label for="new-user-name">Username:</label>
+			<input id="new-user-name"/>
+
+			<button onclick="createUser()">Create</button>
+		</div>
+
+		<div id="current-user-display" style="display:none">
+
+		</div>
+		<script>
+			const lsKeyName = "aggrego-apikey"
+
+			async function createUser() {
+				const nameInput = document.querySelector("#new-user-name");
+
+				requestBody = {
+					name: nameInput.value
+				};
+
+				response = await fetch("/v1/users", {
+					headers: {
+						"Content-Type": "application/json"
+					},
+					method: "POST",
+					body: JSON.stringify(requestBody)
+				});
+
+				rBody = await response.json();
+
+				localStorage.setItem(lsKeyName, rBody.apikey);
+
+				nameInput.value = "";
+
+				login();
+
+			}
+
+			async function login() {
+				const apikey = localStorage.getItem(lsKeyName)
+				if (apikey == null) {
+					return;
+				}
+
+				response = await fetch("/v1/users", {
+					method: "GET",
+					headers: {
+						"Authorization": "ApiKey "+apikey
+					},
+				})
+				rBody = await response.json();
+
+				currentUser = document.getElementById("current-user-display");
+				currentUser.innerText = "Logged in as: " + rBody.name;
+				currentUser.style.display = "block";
+
+				const newUserForm = document.getElementById("new-user-form").style.display = "none"
+			}
+		
+			login()
+		</script>
+
+  </body>
+</html>
