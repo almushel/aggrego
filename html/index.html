@@ -14,12 +14,17 @@
 
 			<label for="apikey-input">Login with API Key</label>
 			<input id="apikey-input"/>
-			<button onclick="loginWithKey()">Login</button>
+			<button onclick="loginWithKeyInput()">Login</button>
 		</div>
 
 		<div id="logged-in" style="display:none">
 			<h2 id="current-user">Current user:</h2>
 			<button onclick="logout()">Logout</button>
+			
+			<h2>Posts</h2>
+			<button onclick="lsGetPosts()">Refresh</button>
+			<div id="posts-container">
+			</div>
 		</div>
 
 		<script>
@@ -28,11 +33,11 @@
 			async function createUser() {
 				const nameInput = document.querySelector("#name-input");
 
-				requestBody = {
+				const requestBody = {
 					name: nameInput.value
 				};
 
-				response = await fetch("/v1/users", {
+				const response = await fetch("/v1/users", {
 					headers: {
 						"Content-Type": "application/json"
 					},
@@ -40,22 +45,18 @@
 					body: JSON.stringify(requestBody)
 				});
 
-				rBody = await response.json();
+				const rBody = await response.json();
 
-				localStorage.setItem(lsKeyName, rBody.apikey);
-
-				nameInput.value = "";
-
-				login();
-			}
-
-			async function login() {
-				const apikey = localStorage.getItem(lsKeyName)
-				if (apikey == null) {
-					return false;
+				const success = await login(rBody.apikey);
+				if (success) {
+					localStorage.setItem(lsKeyName, rBody.apikey);
+					nameInput.value = "";
 				}
+			}
+			
 
-				response = await fetch("/v1/users", {
+			async function login(apikey) {
+				const response = await fetch("/v1/users", {
 					method: "GET",
 					headers: {
 						"Authorization": "ApiKey "+apikey
@@ -65,31 +66,25 @@
 					return false;
 				}
 
-				rBody = await response.json();
+				const rBody = await response.json();
 
 				document.getElementById("current-user").innerText = "Current user: " + rBody.name;
 				document.getElementById("logged-in").style.display = "block";
 
 				document.getElementById("logged-out").style.display = "none";
 
+				getPosts(apikey)
+
 				return true;
 			}
 
-			async function loginWithKey() {
-				keyInput = document.getElementById("apikey-input");
-				loginKey = keyInput.value
-				if (loginKey.length != 64) {
-					alert("login failed")
-					return
-				}
+			async function loginWithKeyInput() {
+				const keyInput = document.getElementById("apikey-input");
 
-				localStorage.setItem(lsKeyName, loginKey)
-				success = await login()
+				const success = await login(keyInput.value)
 				if (success) {
+					localStorage.setItem(lsKeyName, keyInput.value)
 					keyInput.value = ""
-				} else {
-					alert("login failed")
-					localStorage.removeItem(lsKeyName)
 				}
 			}
 
@@ -98,10 +93,55 @@
 
 				document.getElementById("logged-in").style.display = "none";
 				document.getElementById("logged-out").style.display = "block";
+			}
 
+			async function getPosts(apikey) {
+				const offset = 0;
+				const limit = 25;
+
+				const response = await fetch(`/v1/posts?offset=${offset}&limit=${limit}`, {
+					method: "GET",
+					headers: {
+						"Authorization": "ApiKey "+apikey
+					}
+				});
+				const container = document.getElementById("posts-container")
+				container.textContent = ""
+				const responseBody = await response.json();
+				
+				for (let post of responseBody) {
+					const postElement = document.createElement("div")
+					const title = document.createElement("h3");
+					title.innerText = post.title;
+					const url = document.createElement("a");
+					url.href=post.url;
+					// NOTE: HTML entities like &rsquo; not parsed correctly
+					const description = document.createElement("p");
+					description.innerText = post.description;
+
+					url.append(title)
+					postElement.append(url, description)
+					container.append(postElement)
+				}
+			}
+			
+			async function lsLogin() {
+				const apikey = localStorage.getItem(lsKeyName)
+				if (apikey == null) {
+					return false;
+				}
+				login(apikey)
+			}
+			
+			async function lsGetPosts() {
+				const apikey = localStorage.getItem(lsKeyName)
+				if (apikey == null) {
+					return false;
+				}
+				getPosts(apikey)
 			}
 		
-			login()
+			lsLogin()
 		</script>
 
   </body>
