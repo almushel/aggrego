@@ -13,3 +13,12 @@ WHERE feed_id IN (
 )
 OFFSET $2
 LIMIT $3;
+
+-- name: GetPostCount :one
+SELECT COUNT(*)
+FROM posts
+WHERE feed_id IN (
+	SELECT feed_id 
+	FROM feed_follows
+	WHERE user_id=$1
+);

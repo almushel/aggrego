@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -33,6 +34,13 @@ func (api *ApiState) GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 		Limit:  limit,
 	})
+
+	count, err := api.DB.GetPostCount(r.Context(), user.ID)
+	if err != nil {
+		log.Printf("GetPostCount failed: %s", err)
+	} else {
+		w.Header().Add("X-Total-Count", fmt.Sprint(count))
+	}
 
 	if err != nil {
 		log.Println(err)

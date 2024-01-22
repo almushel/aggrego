@@ -28,7 +28,8 @@
 		</div>
 
 		<script>
-			const lsKeyName = "aggrego-apikey"
+			const lsKeyName = "aggrego-apikey";
+			const pageSize = 25;
 
 			async function createUser() {
 				const nameInput = document.querySelector("#name-input");
@@ -92,14 +93,37 @@
 				localStorage.removeItem(lsKeyName)
 
 				document.getElementById("logged-in").style.display = "none";
+				document.getElementById("posts-container").textContent = "";
 				document.getElementById("logged-out").style.display = "block";
+			}
+			
+			function newPostElement(post) {
+					const result = document.createElement("div")
+					const title = document.createElement("h3");
+					title.innerText = post.title;
+					const url = document.createElement("a");
+					url.href=post.url;
+					// NOTE: HTML entities like &rsquo; not parsed correctly
+					const description = document.createElement("p");
+					description.innerText = post.description;
+
+					url.append(title);
+					result.append(url, description);
+					return result;
 			}
 
 			async function getPosts(apikey) {
-				const offset = 0;
-				const limit = 25;
+				const params = new URLSearchParams(window.location.search)
+				const page = parseInt(params.get("pg")) || 1
 
-				const response = await fetch(`/v1/posts?offset=${offset}&limit=${limit}`, {
+				let offset;
+				if (page != NaN && page > 0) {
+					offset = (page-1) * pageSize;
+				} else {
+					offset = 0;
+				}
+
+				const response = await fetch(`/v1/posts?offset=${offset}&limit=${pageSize}`, {
 					method: "GET",
 					headers: {
 						"Authorization": "ApiKey "+apikey
@@ -109,19 +133,29 @@
 				container.textContent = ""
 				const responseBody = await response.json();
 				
-				for (let post of responseBody) {
-					const postElement = document.createElement("div")
-					const title = document.createElement("h3");
-					title.innerText = post.title;
-					const url = document.createElement("a");
-					url.href=post.url;
-					// NOTE: HTML entities like &rsquo; not parsed correctly
-					const description = document.createElement("p");
-					description.innerText = post.description;
+				if (responseBody) {
+					for (let post of responseBody) {
+						container.append(newPostElement(post))
+					}
+				} else {
+					const notFound = document.createElement("p")
+					notFound.textContent = `Page ${page} not found`
+					container.append(notFound)
+				}
 
-					url.append(title)
-					postElement.append(url, description)
-					container.append(postElement)
+				const postCount = response.headers.get("X-Total-Count")
+				const pageCount = Math.ceil(postCount/pageSize)+1
+
+				for (let pg = 1; pg < pageCount; pg++) {
+					const pgLink = document.createElement("a")
+					if (pg != page) {
+						pgLink.href = `${window.location.pathname}?pg=${pg}`
+						pgLink.innerText = `  ${pg} ,`
+					} else {
+						pgLink.innerHTML = `<strong>  ${pg} ,</strong>`
+					}
+					
+					container.append(pgLink)
 				}
 			}
 			

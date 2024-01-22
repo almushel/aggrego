@@ -50,6 +50,23 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 	return i, err
 }
 
+const getPostCount = `-- name: GetPostCount :one
+SELECT COUNT(*)
+FROM posts
+WHERE feed_id IN (
+	SELECT feed_id 
+	FROM feed_follows
+	WHERE user_id=$1
+)
+`
+
+func (q *Queries) GetPostCount(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPostCount, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getPostsByUser = `-- name: GetPostsByUser :many
 SELECT id, created_at, updated_at, title, url, description, published_at, feed_id
 FROM posts
