@@ -34,18 +34,17 @@ func (api *ApiState) GetPostsHandler(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 		Limit:  limit,
 	})
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, 500, "Internal server error")
+		return
+	}
 
 	count, err := api.DB.GetPostCount(r.Context(), user.ID)
 	if err != nil {
 		log.Printf("GetPostCount failed: %s", err)
 	} else {
 		w.Header().Add("X-Total-Count", fmt.Sprint(count))
-	}
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, 500, "Internal server error")
-		return
 	}
 
 	var result []Post

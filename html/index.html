@@ -22,7 +22,6 @@
 			<button onclick="logout()">Logout</button>
 			
 			<h2>Posts</h2>
-			<button onclick="lsGetPosts()">Refresh</button>
 			<div id="posts-container">
 			</div>
 		</div>
@@ -96,16 +95,24 @@
 				document.getElementById("posts-container").textContent = "";
 				document.getElementById("logged-out").style.display = "block";
 			}
+
+			function loadPage(e) {
+				e.preventDefault();
+				const page = e.target.href;
+				window.history.pushState({}, "", page);
+				lsGetPosts();
+			}
 			
 			function newPostElement(post) {
 					const result = document.createElement("div")
-					const title = document.createElement("h3");
-					title.innerText = post.title;
 					const url = document.createElement("a");
 					url.href=post.url;
-					// NOTE: HTML entities like &rsquo; not parsed correctly
+					
+					const title = document.createElement("h3");
+					title.innerText = post.title;
+
 					const description = document.createElement("p");
-					description.innerText = post.description;
+					description.innerHTML = post.description;
 
 					url.append(title);
 					result.append(url, description);
@@ -129,34 +136,41 @@
 						"Authorization": "ApiKey "+apikey
 					}
 				});
-				const container = document.getElementById("posts-container")
-				container.textContent = ""
+				const container = document.getElementById("posts-container");
+				const children = [];
 				const responseBody = await response.json();
 				
 				if (responseBody) {
 					for (let post of responseBody) {
-						container.append(newPostElement(post))
+						children.push(newPostElement(post))
 					}
 				} else {
 					const notFound = document.createElement("p")
-					notFound.textContent = `Page ${page} not found`
-					container.append(notFound)
+					notFound.textContent = `Page ${page} not found`;
+					children.push(notFound);
 				}
 
-				const postCount = response.headers.get("X-Total-Count")
-				const pageCount = Math.ceil(postCount/pageSize)+1
+				const postCount = response.headers.get("X-Total-Count");
+				const pageCount = Math.ceil(postCount/pageSize);
 
-				for (let pg = 1; pg < pageCount; pg++) {
+				const pages = document.createElement("div");
+				pages.style.display = "flex";
+				pages.style.justifyContent = "center";
+				for (let pg = 1; pg <= pageCount; pg++) {
 					const pgLink = document.createElement("a")
+					const separator = pg != pageCount ? "," : ""
 					if (pg != page) {
-						pgLink.href = `${window.location.pathname}?pg=${pg}`
-						pgLink.innerText = `  ${pg} ,`
+						pgLink.addEventListener("click", loadPage);
+						pgLink.href = `${window.location.pathname}?pg=${pg}`;
+						pgLink.textContent = `  ${pg} ${separator}`;
 					} else {
-						pgLink.innerHTML = `<strong>  ${pg} ,</strong>`
+						pgLink.innerHTML = `<strong>  ${pg} ${separator}</strong>`;
 					}
 					
-					container.append(pgLink)
+					pages.append(pgLink);
 				}
+				children.push(pages)
+				container.replaceChildren(...children)
 			}
 			
 			async function lsLogin() {
