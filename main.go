@@ -79,6 +79,6 @@ func main() {
 	server.Handler = router
 
 	log.Println("Server listening at port " + os.Getenv("PORT"))
-	go api.StartFetchWorker()
+	//go api.StartFetchWorker()
 	log.Fatal(server.ListenAndServe())
 }

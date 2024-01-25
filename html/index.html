@@ -20,11 +20,21 @@
 		<div id="logged-in" style="display:none">
 			<h2 id="current-user">Current user:</h2>
 			<button onclick="logout()">Logout</button>
-			
+
+			<h2>Feeds</h2>
+			<ul id="user-feeds"></ul>	
+
 			<h2>Posts</h2>
 			<div id="posts-container">
 			</div>
 		</div>
+
+		<style>
+			#user-feeds {
+				padding: 0;
+				list-style-type: none;
+			}
+		</style>
 
 		<script>
 			const lsKeyName = "aggrego-apikey";
@@ -54,7 +64,6 @@
 				}
 			}
 			
-
 			async function login(apikey) {
 				const response = await fetch("/v1/users", {
 					method: "GET",
@@ -73,7 +82,8 @@
 
 				document.getElementById("logged-out").style.display = "none";
 
-				getPosts(apikey)
+				updatePosts(apikey);
+				updateFeedList(apikey);
 
 				return true;
 			}
@@ -100,35 +110,14 @@
 				e.preventDefault();
 				const page = e.target.href;
 				window.history.pushState({}, "", page);
-				lsGetPosts();
+				lsUpdatePosts();
 			}
 			
-			function newPostElement(post) {
-					const result = document.createElement("div")
-					const url = document.createElement("a");
-					url.href=post.url;
-					
-					const title = document.createElement("h3");
-					title.innerText = post.title;
-
-					const description = document.createElement("p");
-					description.innerHTML = post.description;
-
-					url.append(title);
-					result.append(url, description);
-					return result;
-			}
-
 			async function getPosts(apikey) {
 				const params = new URLSearchParams(window.location.search)
 				const page = parseInt(params.get("pg")) || 1
 
-				let offset;
-				if (page != NaN && page > 0) {
-					offset = (page-1) * pageSize;
-				} else {
-					offset = 0;
-				}
+				const offset = (page-1) * pageSize;
 
 				const response = await fetch(`/v1/posts?offset=${offset}&limit=${pageSize}`, {
 					method: "GET",
@@ -136,22 +125,68 @@
 						"Authorization": "ApiKey "+apikey
 					}
 				});
+				const list = await response.json();
+
+				return {
+					list,
+					page,
+					totalCount: response.headers.get("X-Total-Count"),
+				}
+			}
+
+			async function getFeedFollows(apikey) {
+				let response = await fetch("/v1/feed_follows", {
+					method: "GET",
+					headers: {
+						"Authorization": "ApiKey "+apikey
+					}
+				});
+
+				const result = await response.json();
+				return result;
+
+			}
+
+			async function getFeeds() {
+				let response = await fetch("/v1/feeds", {
+					method: "GET",
+				});
+
+				const result = await response.json();
+				return result;
+			}
+
+			function newPostElement(post) {
+				const result = document.createElement("div")
+				const url = document.createElement("a");
+				url.href=post.url;
+				
+				const title = document.createElement("h3");
+				title.innerText = post.title;
+
+				const description = document.createElement("p");
+				description.innerHTML = post.description;
+
+				url.append(title);
+				result.append(url, description);
+				return result;
+			}
+
+			async function updatePosts(apikey) {
+				const posts = await getPosts(apikey);
 				const container = document.getElementById("posts-container");
 				const children = [];
-				const responseBody = await response.json();
-				
-				if (responseBody) {
-					for (let post of responseBody) {
+				if (posts.list) {
+					for (let post of posts.list) {
 						children.push(newPostElement(post))
 					}
 				} else {
 					const notFound = document.createElement("p")
-					notFound.textContent = `Page ${page} not found`;
+					notFound.textContent = `Page ${posts.page} not found`;
 					children.push(notFound);
 				}
 
-				const postCount = response.headers.get("X-Total-Count");
-				const pageCount = Math.ceil(postCount/pageSize);
+				const pageCount = Math.ceil(posts.totalCount/pageSize);
 
 				const pages = document.createElement("div");
 				pages.style.display = "flex";
@@ -159,7 +194,7 @@
 				for (let pg = 1; pg <= pageCount; pg++) {
 					const pgLink = document.createElement("a")
 					const separator = pg != pageCount ? "," : ""
-					if (pg != page) {
+					if (pg != posts.page) {
 						pgLink.addEventListener("click", loadPage);
 						pgLink.href = `${window.location.pathname}?pg=${pg}`;
 						pgLink.textContent = `  ${pg} ${separator}`;
@@ -169,10 +204,35 @@
 					
 					pages.append(pgLink);
 				}
-				children.push(pages)
-				container.replaceChildren(...children)
+				children.push(pages);
+				container.replaceChildren(...children);
 			}
-			
+
+			async function updateFeedList(apikey) {
+				const feeds = await getFeeds();
+				const follows = await getFeedFollows(apikey);
+
+				const followIDs = []
+				follows.forEach(element => {
+					followIDs.push(element.feed_id)	
+				});
+
+				const feedList = document.getElementById("user-feeds");
+
+				let id = 1
+				elements = []
+				for (let feed of feeds) {
+					const url = new URL(feed.url);
+
+					const e = document.createElement("li");
+					e.innerHTML = `<input type="checkbox" ${followIDs.includes(feed.id) ? "checked" : ""}><label for="feed-${id}">${url.hostname}</label>`
+
+					elements.push(e)
+				}
+
+				feedList.replaceChildren(...elements)
+			}
+
 			async function lsLogin() {
 				const apikey = localStorage.getItem(lsKeyName)
 				if (apikey == null) {
@@ -181,12 +241,12 @@
 				login(apikey)
 			}
 			
-			async function lsGetPosts() {
+			async function lsUpdatePosts() {
 				const apikey = localStorage.getItem(lsKeyName)
 				if (apikey == null) {
 					return false;
 				}
-				getPosts(apikey)
+				updatePosts(apikey)
 			}
 		
 			lsLogin()
