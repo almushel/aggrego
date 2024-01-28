@@ -44,11 +44,12 @@ func (api *ApiState) PostFeedFollowsHandler(w http.ResponseWriter, r *http.Reque
 		FeedID: params.FeedID,
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "duplciate key") {
+		if strings.Contains(err.Error(), "duplicate key") {
 			respondWithError(w, 409, "Duplicate feed follow")
 		} else {
 			respondWithError(w, 500, "Internal server error")
 		}
+		return
 	}
 
 	respondWithJSON(w, 201, dbToAPI(ff))

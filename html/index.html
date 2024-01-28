@@ -142,7 +142,7 @@
 					}
 				});
 
-				const result = await response.json();
+				const result = await response.json() || [];
 				return result;
 
 			}
@@ -213,24 +213,78 @@
 				const follows = await getFeedFollows(apikey);
 
 				const followIDs = []
-				follows.forEach(element => {
-					followIDs.push(element.feed_id)	
-				});
+				for (let f of follows) {
+					followIDs.push(f.feed_id)	
+				}
 
 				const feedList = document.getElementById("user-feeds");
 
-				let id = 1
-				elements = []
+				let count = 1;
+				let elements = []
 				for (let feed of feeds) {
 					const url = new URL(feed.url);
+					const elementID = `feed-list-item-${count}`;
 
 					const e = document.createElement("li");
-					e.innerHTML = `<input type="checkbox" ${followIDs.includes(feed.id) ? "checked" : ""}><label for="feed-${id}">${url.hostname}</label>`
+					e.innerHTML = 
+						`<input type="checkbox" id="${elementID}" ${followIDs.includes(feed.id) ? "checked" : ""}>` +
+						`<label for="${elementID}">${url.hostname}</label>`
+
+					const checkbox = e.children[elementID];
+					checkbox.addEventListener("input", async () => {
+						const success = await toggleFeedFollow(feed.id, checkbox.checked)
+						if (success) {
+							lsUpdatePosts()
+						} else {
+							checkbox.checked = !checkbox.checked;
+						}
+					})
 
 					elements.push(e)
+					count++;
 				}
 
 				feedList.replaceChildren(...elements)
+			}
+
+			async function toggleFeedFollow(feed_id, follow) {
+				const apikey = localStorage.getItem(lsKeyName)
+				if (apikey == null) {
+					return false;
+				}
+				const headers = {"Authorization": "ApiKey "+apikey};
+
+				let response;
+				if (follow) {
+					response = await fetch("/v1/feed_follows", {
+							method: "POST",
+							headers,
+							body: JSON.stringify({feed_id})
+						}
+					);
+				} else {
+					let ffID = "";
+					const ffList = await getFeedFollows(apikey)
+					for (const ff of ffList) {
+						if (ff.feed_id == feed_id) {
+							ffID = ff.id;
+							break;
+						}
+					}
+
+					if (!ffID) {
+						console.log("toggleFeedFollow() can't delete feed_follow that doesn't exist");
+						return false;
+					} 
+
+					response = await fetch("/v1/feed_follows/"+ffID, {
+							method: "DELETE",
+							headers
+						}
+					);
+				}
+
+				return true;
 			}
 
 			async function lsLogin() {
