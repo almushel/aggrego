@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width">
-    <title>Aggrego: A Feed Aggregator</title>
+    <title>Aggrego: An RSS Feed Aggregator</title>
   </head>
   <body>
 		<h1>Aggrego</h1>
 		<div id="logged-out">
 			<label for="name-input">Create User:</label>
-			<input id="name-input"/>
+			<input id="name-input" onkeypress="onEnterCallback(event, createUser)"/>
 			<button onclick="createUser()">Create</button>
 
 			<label for="apikey-input">Login with API Key</label>
-			<input id="apikey-input"/>
+			<input id="apikey-input" onkeypress="onEnterCallback(event, loginWithKeyInput)"/>
 			<button onclick="loginWithKeyInput()">Login</button>
 		</div>
 
@@ -22,6 +22,10 @@
 			<button onclick="logout()">Logout</button>
 
 			<h2>Feeds</h2>
+			<label for="new-feed-name">Name: </label><input type="text" id="new-feed-name" onkeypress="onEnterCallback(event, submitNewFeed)"/>
+			<label for="new-feed-url">URL: </label><input type="text" id="new-feed-url" onkeypress="onEnterCallback(event, submitNewFeed)" />
+			<button onclick="submitNewFeed()">Submit</button>
+			
 			<ul id="user-feeds"></ul>	
 
 			<h2>Posts</h2>
@@ -94,7 +98,6 @@
 				const success = await login(keyInput.value)
 				if (success) {
 					localStorage.setItem(lsKeyName, keyInput.value)
-					keyInput.value = ""
 				}
 			}
 
@@ -144,7 +147,6 @@
 
 				const result = await response.json() || [];
 				return result;
-
 			}
 
 			async function getFeeds() {
@@ -154,6 +156,59 @@
 
 				const result = await response.json();
 				return result;
+			}
+
+			async function postFeed(name, url, apikey) {
+				const body = {name, url};	
+				const response = await fetch("/v1/feeds", {
+					method: "POST",
+					headers: {
+						"Authorization": "ApiKey "+apikey
+					},
+					body: JSON.stringify(body)
+				});
+
+				return response.ok;
+			}
+
+			async function toggleFeedFollow(feed_id, follow) {
+				const apikey = localStorage.getItem(lsKeyName)
+				if (apikey == null) {
+					return false;
+				}
+				const headers = {"Authorization": "ApiKey "+apikey};
+
+				let response;
+				if (follow) {
+					response = await fetch("/v1/feed_follows", {
+							method: "POST",
+							headers,
+							body: JSON.stringify({feed_id})
+						}
+					);
+				} else {
+					let ffID = "";
+					const ffList = await getFeedFollows(apikey)
+					for (const ff of ffList) {
+						if (ff.feed_id == feed_id) {
+							ffID = ff.id;
+							break;
+						}
+					}
+
+					if (!ffID) {
+						console.log("toggleFeedFollow() can't delete feed_follow that doesn't exist");
+						return false;
+					} 
+
+					response = await fetch("/v1/feed_follows/"+ffID, {
+							method: "DELETE",
+							headers
+						}
+					);
+				}
+
+				return true;
 			}
 
 			function newPostElement(post) {
@@ -247,44 +302,30 @@
 				feedList.replaceChildren(...elements)
 			}
 
-			async function toggleFeedFollow(feed_id, follow) {
+			function onEnterCallback(e, callback) {
+				if (e.key == "Enter") {
+					callback();
+				}
+			}
+
+			async function submitNewFeed() {
 				const apikey = localStorage.getItem(lsKeyName)
 				if (apikey == null) {
 					return false;
 				}
-				const headers = {"Authorization": "ApiKey "+apikey};
+				const nameField = document.getElementById("new-feed-name");
+				const urlField = document.getElementById("new-feed-url");
 
-				let response;
-				if (follow) {
-					response = await fetch("/v1/feed_follows", {
-							method: "POST",
-							headers,
-							body: JSON.stringify({feed_id})
-						}
-					);
-				} else {
-					let ffID = "";
-					const ffList = await getFeedFollows(apikey)
-					for (const ff of ffList) {
-						if (ff.feed_id == feed_id) {
-							ffID = ff.id;
-							break;
-						}
+				if (nameField.value && urlField.value) {
+					const success = await postFeed(nameField.value, urlField.value, apikey)
+					if (success) {
+						nameField.value = "";
+						urlField.value = "";
+
+						updateFeedList(apikey);
+						updatePosts(apikey);
 					}
-
-					if (!ffID) {
-						console.log("toggleFeedFollow() can't delete feed_follow that doesn't exist");
-						return false;
-					} 
-
-					response = await fetch("/v1/feed_follows/"+ffID, {
-							method: "DELETE",
-							headers
-						}
-					);
 				}
-
-				return true;
 			}
 
 			async function lsLogin() {

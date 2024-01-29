@@ -5,9 +5,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/almushel/aggrego/internal/database"
+	"github.com/almushel/aggrego/internal/feeds"
 	"github.com/google/uuid"
 )
 
@@ -37,6 +39,18 @@ func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, 400, "Malformed request body")
+		return
+	}
+
+	// NOTE: Should this succeed when protocol (http/s, etc) omitted?
+	parsedURL, _ := url.Parse(params.URL)
+	if _, err := url.ParseRequestURI(parsedURL.String()); err != nil {
+		respondWithError(w, 400, "Invalid request URL")
+		return
+	}
+
+	if _, err := feeds.FetchRSSFeed(parsedURL.String()); err != nil {
+		respondWithError(w, 400, "Request URL is not a valid feed")
 		return
 	}
 
