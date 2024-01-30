@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Aggrego: An RSS Feed Aggregator</title>
+	<script src="/js/endpoints.js"></script>
+	<script src="/js/callbacks.js"></script>
+  </head>
+  <body>
+		<h1>Aggrego</h1>
+		<div id="logged-out">
+			<label for="name-input">Create User:</label>
+			<input id="name-input" onkeypress="onEnterCallback(event, createUser)"/>
+			<button onclick="createUser()">Create</button>
+
+			<label for="apikey-input">Login with API Key</label>
+			<input id="apikey-input" onkeypress="onEnterCallback(event, loginWithKeyInput)"/>
+			<button onclick="loginWithKeyInput()">Login</button>
+		</div>
+
+		<div id="logged-in" style="display:none">
+			<h2 id="current-user">Current user:</h2>
+			<button onclick="logout()">Logout</button>
+
+			<h2>Feeds</h2>
+			<label for="new-feed-name">Name: </label><input type="text" id="new-feed-name" onkeypress="onEnterCallback(event, submitNewFeed)"/>
+			<label for="new-feed-url">URL: </label><input type="text" id="new-feed-url" onkeypress="onEnterCallback(event, submitNewFeed)" />
+			<button onclick="submitNewFeed()">Submit</button>
+			
+			<ul id="user-feeds"></ul>	
+
+			<h2>Posts</h2>
+			<div id="posts-container">
+			</div>
+		</div>
+
+		<style>
+			#user-feeds {
+				padding: 0;
+				list-style-type: none;
+			}
+		</style>
+
+		<script>
+			lsLogin()
+		</script>
+
+  </body>
+</html>

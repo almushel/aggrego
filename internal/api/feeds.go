@@ -50,9 +50,12 @@ func (api *ApiState) PostFeedsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := feeds.FetchRSSFeed(parsedURL.String()); err != nil {
-		respondWithError(w, 400, "Request URL is not a valid feed")
+		respondWithError(w, 400, "Request URL is not a supported feed")
 		return
 	}
+
+	// TO DO: Get db feed name from xml feed title during validation
+	// Use params.name for feed_follow name (to be added) to allow custom feed names per user
 
 	feedParams := database.CreateFeedParams{
 		ID:     uuid.New(),

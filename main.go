@@ -2,6 +2,7 @@ package main
 
 import (
 	//"embed"
+
 	"log"
 	"net/http"
 	"os"
@@ -12,21 +13,8 @@ import (
 
 	. "github.com/almushel/aggrego/internal/api"
 	"github.com/almushel/aggrego/internal/util"
+	//"github.com/almushel/aggrego/static"
 )
-
-/* //go:embed html */
-//var content embed.FS
-
-func frontendHandler(w http.ResponseWriter, r *http.Request) {
-	indexPage, err := os.ReadFile("html/index.html")
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		w.Write([]byte("Internal server error"))
-	}
-
-	w.Write(indexPage)
-}
 
 func main() {
 	var err error
@@ -53,10 +41,14 @@ func main() {
 	corsOptions = cors.Options{
 		AllowCredentials: true,
 		AllowedOrigins:   []string{""},
-		//AllowedMethods: []{},
+		AllowedMethods:   []string{"GET"},
 	}
+
 	router.Use(cors.Handler(corsOptions))
-	router.Mount("/", http.HandlerFunc(frontendHandler))
+
+	//fs := http.FileServer(http.FS(static.FS))
+	fs := http.FileServer(http.Dir("static"))
+	router.Handle("/*", fs)
 
 	v1Router = chi.NewRouter()
 	v1Router.Get("/readiness", ReadinessHandler)
