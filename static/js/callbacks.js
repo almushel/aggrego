@@ -1,4 +1,5 @@
 const lsKeyName = "aggrego-apikey";
+const postPageSize = 25;
 
 function onEnterCallback(e, callback) {
 	if (e.key == "Enter") {
@@ -17,7 +18,7 @@ async function login(apikey) {
 
 	document.getElementById("logged-out").style.display = "none";
 
-	updatePosts(apikey);
+	loadPosts(apikey);
 	updateFeedList(apikey);
 
 	return true;
@@ -62,41 +63,43 @@ function newPostElement(post) {
 	return result;
 }
 
-async function updatePosts(apikey) {
-	const posts = await getPosts(apikey);
+async function loadPosts(apikey, offset=0, limit=postPageSize) {
 	const container = document.getElementById("posts-container");
+	container.textContent = "";
+	appendPosts(apikey, offset, limit);
+}
+
+async function appendPosts(apikey, offset=0, limit=postPageSize) {
+	const container = document.getElementById("posts-container");
+	
+	const loadingElement = document.createElement("div");
+	loadingElement.innerText = "Loading...";
+	container.append(loadingElement);
+
+	const posts = await getPosts(apikey, offset, limit);
 	const children = [];
-	if (posts.list) {
+	if (posts.list.length > 0) {
 		for (let post of posts.list) {
 			children.push(newPostElement(post))
 		}
+		const nextOffset = posts.offset + children.length;
+
+		const loadOnScrollEnd = async () => {
+			const loadThreshold = 100;
+			const rect = loadingElement.getBoundingClientRect();
+			const viewDelta = rect.top - window.visualViewport.height;
+			if (viewDelta <= loadThreshold) {
+				document.removeEventListener("scrollend", loadOnScrollEnd)
+				loadingElement.remove();
+				await appendPosts(apikey, nextOffset);
+			}
+		};
+		document.addEventListener("scrollend", loadOnScrollEnd)
 	} else {
-		const notFound = document.createElement("p")
-		notFound.textContent = `Page ${posts.page} not found`;
-		children.push(notFound);
+		loadingElement.textContent = `End of posts`;
 	}
 
-	const pageCount = Math.ceil(posts.totalCount/pageSize);
-
-	const pages = document.createElement("div");
-	pages.style.display = "flex";
-	pages.style.justifyContent = "center";
-	for (let pg = 1; pg <= pageCount; pg++) {
-		const pgLink = document.createElement("a")
-		const separator = pg != pageCount ? "," : ""
-		if (pg != posts.page) {
-			pgLink.addEventListener("click", loadPage);
-			pgLink.href = `${window.location.pathname}?pg=${pg}`;
-			pgLink.textContent = `  ${pg} ${separator}`;
-		} else {
-			pgLink.innerHTML = `<strong>  ${pg} ${separator}</strong>`;
-		}
-		
-		pages.append(pgLink);
-	}
-
-	children.push(pages);
-	container.replaceChildren(...children);
+	container.append(...children, loadingElement)
 }
 
 async function updateFeedList(apikey) {
@@ -153,7 +156,7 @@ async function submitNewFeed() {
 			urlField.value = "";
 
 			updateFeedList(apikey);
-			updatePosts(apikey);
+			loadPosts(apikey);
 		}
 	}
 }
@@ -171,5 +174,5 @@ async function lsUpdatePosts() {
 	if (apikey == null) {
 		return false;
 	}
-	updatePosts(apikey)
+	loadPosts(apikey)
 }

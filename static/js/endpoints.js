@@ -1,5 +1,3 @@
-const pageSize = 25;
-
 async function createUser() {
 	const nameInput = document.querySelector("#name-input");
 
@@ -39,24 +37,19 @@ async function getUser(apikey) {
 	return result;
 }
 
-async function getPosts(apikey) {
-	const params = new URLSearchParams(window.location.search)
-	const page = parseInt(params.get("pg")) || 1
-
-	const offset = (page-1) * pageSize;
-
-	const response = await fetch(`/v1/posts?offset=${offset}&limit=${pageSize}`, {
+async function getPosts(apikey, offset, limit) {
+	const response = await fetch(`/v1/posts?offset=${offset}&limit=${limit}`, {
 		method: "GET",
 		headers: {
 			"Authorization": "ApiKey "+apikey
 		}
 	});
-	const list = await response.json();
+	const list = await response.json() || [];
 
 	return {
 		list,
-		page,
-		totalCount: response.headers.get("X-Total-Count"),
+		offset,
+		totalCount: parseInt(response.headers.get("X-Total-Count")),
 	}
 }
 
