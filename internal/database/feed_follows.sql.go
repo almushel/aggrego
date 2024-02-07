@@ -79,7 +79,7 @@ func (q *Queries) GetUserFollows(ctx context.Context, arg GetUserFollowsParams) 
 }
 
 const unfollowFeed = `-- name: UnfollowFeed :exec
-DELETE FROM feed_follows WHERE user_id=$1 and id = $2
+DELETE FROM feed_follows WHERE user_id=$1 AND id = $2
 `
 
 type UnfollowFeedParams struct {

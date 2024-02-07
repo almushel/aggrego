@@ -4,8 +4,18 @@ VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetPostsByUser :many
-SELECT *
+SELECT 
+	posts.*,
+	CAST (
+		CASE 
+			WHEN 
+			EXISTS (select * from post_likes WHERE post_likes.post_id=posts.id)
+			THEN 1
+			ELSE 0
+		END as BOOLEAN
+	) AS liked
 FROM posts
+LEFT JOIN post_likes ON post_likes.user_id=$1
 WHERE feed_id IN (
 	SELECT feed_id 
 	FROM feed_follows
@@ -22,3 +32,22 @@ WHERE feed_id IN (
 	FROM feed_follows
 	WHERE user_id=$1
 );
+
+-- name: LikePost :one
+INSERT INTO post_likes (id, user_id, post_id, created_at, updated_at)
+VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+RETURNING *;
+
+-- name: UnlikePost :one
+DELETE FROM post_likes
+WHERE user_id=$1 AND post_id=$2
+RETURNING *;
+
+-- name: GetLikedPosts :many
+SELECT * 
+FROM posts
+WHERE id IN (
+	SELECT post_id
+	FROM post_likes
+	WHERE user_id=$1
+); 

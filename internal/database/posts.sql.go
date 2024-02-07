@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -50,43 +51,18 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 	return i, err
 }
 
-const getPostCount = `-- name: GetPostCount :one
-SELECT COUNT(*)
+const getLikedPosts = `-- name: GetLikedPosts :many
+SELECT id, created_at, updated_at, title, url, description, published_at, feed_id 
 FROM posts
-WHERE feed_id IN (
-	SELECT feed_id 
-	FROM feed_follows
+WHERE id IN (
+	SELECT post_id
+	FROM post_likes
 	WHERE user_id=$1
 )
 `
 
-func (q *Queries) GetPostCount(ctx context.Context, userID uuid.UUID) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getPostCount, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const getPostsByUser = `-- name: GetPostsByUser :many
-SELECT id, created_at, updated_at, title, url, description, published_at, feed_id
-FROM posts
-WHERE feed_id IN (
-	SELECT feed_id 
-	FROM feed_follows
-	WHERE user_id=$1
-)
-OFFSET $2
-LIMIT $3
-`
-
-type GetPostsByUserParams struct {
-	UserID uuid.UUID
-	Offset int32
-	Limit  int32
-}
-
-func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) ([]Post, error) {
-	rows, err := q.db.QueryContext(ctx, getPostsByUser, arg.UserID, arg.Offset, arg.Limit)
+func (q *Queries) GetLikedPosts(ctx context.Context, userID uuid.UUID) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getLikedPosts, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -115,4 +91,143 @@ func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const getPostCount = `-- name: GetPostCount :one
+SELECT COUNT(*)
+FROM posts
+WHERE feed_id IN (
+	SELECT feed_id 
+	FROM feed_follows
+	WHERE user_id=$1
+)
+`
+
+func (q *Queries) GetPostCount(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPostCount, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getPostsByUser = `-- name: GetPostsByUser :many
+SELECT 
+	posts.id, posts.created_at, posts.updated_at, posts.title, posts.url, posts.description, posts.published_at, posts.feed_id,
+	CAST (
+		CASE 
+			WHEN 
+			EXISTS (select id, user_id, post_id, created_at, updated_at from post_likes WHERE post_likes.post_id=posts.id)
+			THEN 1
+			ELSE 0
+		END as BOOLEAN
+	) AS liked
+FROM posts
+LEFT JOIN post_likes ON post_likes.user_id=$1
+WHERE feed_id IN (
+	SELECT feed_id 
+	FROM feed_follows
+	WHERE user_id=$1
+)
+OFFSET $2
+LIMIT $3
+`
+
+type GetPostsByUserParams struct {
+	UserID uuid.UUID
+	Offset int32
+	Limit  int32
+}
+
+type GetPostsByUserRow struct {
+	ID          uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Title       string
+	Url         string
+	Description string
+	PublishedAt sql.NullTime
+	FeedID      uuid.UUID
+	Liked       bool
+}
+
+func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) ([]GetPostsByUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostsByUser, arg.UserID, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostsByUserRow
+	for rows.Next() {
+		var i GetPostsByUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Title,
+			&i.Url,
+			&i.Description,
+			&i.PublishedAt,
+			&i.FeedID,
+			&i.Liked,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const likePost = `-- name: LikePost :one
+INSERT INTO post_likes (id, user_id, post_id, created_at, updated_at)
+VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+RETURNING id, user_id, post_id, created_at, updated_at
+`
+
+type LikePostParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+	PostID uuid.UUID
+}
+
+func (q *Queries) LikePost(ctx context.Context, arg LikePostParams) (PostLike, error) {
+	row := q.db.QueryRowContext(ctx, likePost, arg.ID, arg.UserID, arg.PostID)
+	var i PostLike
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const unlikePost = `-- name: UnlikePost :one
+DELETE FROM post_likes
+WHERE user_id=$1 AND post_id=$2
+RETURNING id, user_id, post_id, created_at, updated_at
+`
+
+type UnlikePostParams struct {
+	UserID uuid.UUID
+	PostID uuid.UUID
+}
+
+func (q *Queries) UnlikePost(ctx context.Context, arg UnlikePostParams) (PostLike, error) {
+	row := q.db.QueryRowContext(ctx, unlikePost, arg.UserID, arg.PostID)
+	var i PostLike
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
