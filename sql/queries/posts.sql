@@ -40,10 +40,15 @@ RETURNING *;
 
 -- name: UnlikePost :one
 DELETE FROM post_likes
-WHERE user_id=$1 AND post_id=$2
+WHERE id=$1
 RETURNING *;
 
--- name: GetLikedPosts :many
+-- name: GetPostLike :one
+SELECT *
+FROM post_likes
+WHERE id=$1;
+
+-- name: GetLikedPostsByUser :many
 SELECT * 
 FROM posts
 WHERE id IN (

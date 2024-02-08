@@ -10,7 +10,8 @@ func TestApitoDB(t *testing.T) {
 	var f database.Feed
 	var ff database.FeedFollow
 	var u database.User
-	var p database.Post
+	var p database.GetPostsByUserRow
+	var pl database.PostLike
 
 	t.Run("unsupported type db to api", func(t *testing.T) {
 		var arg int
@@ -39,6 +40,12 @@ func TestApitoDB(t *testing.T) {
 
 	t.Run("post db to api", func(t *testing.T) {
 		if result, ok := dbToAPI(p).(Post); !ok {
+			t.Fatalf("Wrong type or nil: %v", result)
+		}
+	})
+
+	t.Run("postLike db to api", func(t *testing.T) {
+		if result, ok := dbToAPI(pl).(PostLike); !ok {
 			t.Fatalf("Wrong type or nil: %v", result)
 		}
 	})

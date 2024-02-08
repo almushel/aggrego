@@ -67,10 +67,14 @@ func main() {
 
 	v1Router.Get("/posts", api.GetPostsHandler)
 
+	v1Router.Post("/post_likes", api.PostLikesHandler)
+	v1Router.Delete("/post_likes/{postLikeID}", api.DeleteLikesHandler)
+	v1Router.Get("/post_likes", api.GetLikesHandler)
+
 	server.Addr = ":" + os.Getenv("PORT")
 	server.Handler = router
 
 	log.Println("Server listening at port " + os.Getenv("PORT"))
-	go api.StartFetchWorker()
+	//go api.StartFetchWorker()
 	log.Fatal(server.ListenAndServe())
 }

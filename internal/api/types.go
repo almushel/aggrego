@@ -45,6 +45,14 @@ type Post struct {
 	Liked       bool      `json:"liked"`
 }
 
+type PostLike struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	PostID    uuid.UUID `json:"post_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 func dbToAPI(d interface{}) interface{} {
 	switch d := d.(type) {
 	case database.Feed:
@@ -63,6 +71,8 @@ func dbToAPI(d interface{}) interface{} {
 		return Post{
 			d.ID, d.CreatedAt, d.UpdatedAt, d.Title, d.Url, d.Description, d.PublishedAt.Time, d.FeedID, d.Liked,
 		}
+	case database.PostLike:
+		return PostLike(d)
 	}
 
 	return nil

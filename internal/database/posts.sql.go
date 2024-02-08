@@ -51,7 +51,7 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 	return i, err
 }
 
-const getLikedPosts = `-- name: GetLikedPosts :many
+const getLikedPostsByUser = `-- name: GetLikedPostsByUser :many
 SELECT id, created_at, updated_at, title, url, description, published_at, feed_id 
 FROM posts
 WHERE id IN (
@@ -61,8 +61,8 @@ WHERE id IN (
 )
 `
 
-func (q *Queries) GetLikedPosts(ctx context.Context, userID uuid.UUID) ([]Post, error) {
-	rows, err := q.db.QueryContext(ctx, getLikedPosts, userID)
+func (q *Queries) GetLikedPostsByUser(ctx context.Context, userID uuid.UUID) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getLikedPostsByUser, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +108,25 @@ func (q *Queries) GetPostCount(ctx context.Context, userID uuid.UUID) (int64, er
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const getPostLike = `-- name: GetPostLike :one
+SELECT id, user_id, post_id, created_at, updated_at
+FROM post_likes
+WHERE id=$1
+`
+
+func (q *Queries) GetPostLike(ctx context.Context, id uuid.UUID) (PostLike, error) {
+	row := q.db.QueryRowContext(ctx, getPostLike, id)
+	var i PostLike
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getPostsByUser = `-- name: GetPostsByUser :many
@@ -210,17 +229,12 @@ func (q *Queries) LikePost(ctx context.Context, arg LikePostParams) (PostLike, e
 
 const unlikePost = `-- name: UnlikePost :one
 DELETE FROM post_likes
-WHERE user_id=$1 AND post_id=$2
+WHERE id=$1
 RETURNING id, user_id, post_id, created_at, updated_at
 `
 
-type UnlikePostParams struct {
-	UserID uuid.UUID
-	PostID uuid.UUID
-}
-
-func (q *Queries) UnlikePost(ctx context.Context, arg UnlikePostParams) (PostLike, error) {
-	row := q.db.QueryRowContext(ctx, unlikePost, arg.UserID, arg.PostID)
+func (q *Queries) UnlikePost(ctx context.Context, id uuid.UUID) (PostLike, error) {
+	row := q.db.QueryRowContext(ctx, unlikePost, id)
 	var i PostLike
 	err := row.Scan(
 		&i.ID,

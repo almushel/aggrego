@@ -22,6 +22,8 @@ var apikey string
 var feedURLs []string
 var feedIDs []uuid.UUID
 var feedFollowIDs []uuid.UUID
+var postIDs []uuid.UUID
+var postLikeIDs []uuid.UUID
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -193,6 +195,10 @@ func TestGetPosts(t *testing.T) {
 				t.Fatal("Failed to unmarshel user posts")
 			}
 			pageLength = len(posts)
+
+			for _, p := range posts {
+				postIDs = append(postIDs, p.ID)
+			}
 		})
 
 		if pageLength > limit {
@@ -217,6 +223,49 @@ func TestDeleteFeedFollows(t *testing.T) {
 			request, _ := http.NewRequest("DELETE", apiAddr+"/feed_follows/{"+ffidStr+"}", nil)
 			request.Header.Add("Authorization", "ApiKey "+apikey)
 			testRequest(t, request, 200, "Failed to delete feed follow")
+		})
+	}
+}
+
+func TestPostLikes(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	for _, pid := range postIDs {
+		pidStr := pid.String()
+		t.Run("Like post "+pidStr, func(t *testing.T) {
+			body := []byte(`{"post_id":"` + pidStr + `"}`)
+			request, _ := http.NewRequest("POST", apiAddr+"/post_likes", bytes.NewBuffer(body))
+			request.Header.Add("Authorization", "ApiKey "+apikey)
+			response := testRequest(t, request, 200, "Failed to POST post like "+pidStr)
+
+			var newLike api.PostLike
+			err := unmarshalResponse(response, newLike)
+			if err == nil {
+				postLikeIDs = append(postLikeIDs, newLike.ID)
+			}
+		})
+	}
+}
+
+func TestGetLikes(t *testing.T) {
+	request, _ := http.NewRequest("GET", apiAddr+"/post_likes", nil)
+	request.Header.Add("Authorization", "ApiKey "+apikey)
+	testRequest(t, request, 200, "Failed to get liked posts for "+apikey)
+}
+
+func TestDeleteLikes(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	for _, pid := range postLikeIDs {
+		pidStr := pid.String()
+		t.Run("Unlike post "+pidStr, func(t *testing.T) {
+			request, _ := http.NewRequest("DELETE", apiAddr+"/post_likes/"+pidStr, nil)
+			request.Header.Add("Authorization", "ApiKey "+apikey)
+			testRequest(t, request, 200, "Failed to DELETE post like "+pidStr)
 		})
 	}
 }
