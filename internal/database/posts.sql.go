@@ -8,7 +8,6 @@ package database
 import (
 	"context"
 	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -130,18 +129,8 @@ func (q *Queries) GetPostLike(ctx context.Context, id uuid.UUID) (PostLike, erro
 }
 
 const getPostsByUser = `-- name: GetPostsByUser :many
-SELECT 
-	posts.id, posts.created_at, posts.updated_at, posts.title, posts.url, posts.description, posts.published_at, posts.feed_id,
-	CAST (
-		CASE 
-			WHEN 
-			EXISTS (select id, user_id, post_id, created_at, updated_at from post_likes WHERE post_likes.post_id=posts.id)
-			THEN 1
-			ELSE 0
-		END as BOOLEAN
-	) AS liked
+SELECT id, created_at, updated_at, title, url, description, published_at, feed_id
 FROM posts
-LEFT JOIN post_likes ON post_likes.user_id=$1
 WHERE feed_id IN (
 	SELECT feed_id 
 	FROM feed_follows
@@ -157,27 +146,15 @@ type GetPostsByUserParams struct {
 	Limit  int32
 }
 
-type GetPostsByUserRow struct {
-	ID          uuid.UUID
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Title       string
-	Url         string
-	Description string
-	PublishedAt sql.NullTime
-	FeedID      uuid.UUID
-	Liked       bool
-}
-
-func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) ([]GetPostsByUserRow, error) {
+func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) ([]Post, error) {
 	rows, err := q.db.QueryContext(ctx, getPostsByUser, arg.UserID, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPostsByUserRow
+	var items []Post
 	for rows.Next() {
-		var i GetPostsByUserRow
+		var i Post
 		if err := rows.Scan(
 			&i.ID,
 			&i.CreatedAt,
@@ -187,7 +164,41 @@ func (q *Queries) GetPostsByUser(ctx context.Context, arg GetPostsByUserParams) 
 			&i.Description,
 			&i.PublishedAt,
 			&i.FeedID,
-			&i.Liked,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserLikes = `-- name: GetUserLikes :many
+SELECT id, user_id, post_id, created_at, updated_at
+FROM post_likes
+WHERE user_id=$1
+`
+
+func (q *Queries) GetUserLikes(ctx context.Context, userID uuid.UUID) ([]PostLike, error) {
+	rows, err := q.db.QueryContext(ctx, getUserLikes, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PostLike
+	for rows.Next() {
+		var i PostLike
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.PostID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

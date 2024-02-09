@@ -10,7 +10,7 @@ func TestApitoDB(t *testing.T) {
 	var f database.Feed
 	var ff database.FeedFollow
 	var u database.User
-	var p database.GetPostsByUserRow
+	var p database.Post
 	var pl database.PostLike
 
 	t.Run("unsupported type db to api", func(t *testing.T) {

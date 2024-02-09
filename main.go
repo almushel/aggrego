@@ -47,8 +47,14 @@ func main() {
 	router.Use(cors.Handler(corsOptions))
 
 	//fs := http.FileServer(http.FS(static.FS))
+	//router.Handle("/*", fs)
+
+	// Serve from file system and disable caching for dev/testing
 	fs := http.FileServer(http.Dir("static"))
-	router.Handle("/*", fs)
+	router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Cache-control", "no-cache, must-revalidate")
+		fs.ServeHTTP(w, r)
+	})
 
 	v1Router = chi.NewRouter()
 	v1Router.Get("/readiness", ReadinessHandler)

@@ -42,7 +42,6 @@ type Post struct {
 	Description string    `json:"description"`
 	PublishedAt time.Time `json:"published_at"`
 	FeedID      uuid.UUID `json:"feed_id"`
-	Liked       bool      `json:"liked"`
 }
 
 type PostLike struct {
@@ -65,11 +64,7 @@ func dbToAPI(d interface{}) interface{} {
 		return FeedFollow(d)
 	case database.Post:
 		return Post{
-			d.ID, d.CreatedAt, d.UpdatedAt, d.Title, d.Url, d.Description, d.PublishedAt.Time, d.FeedID, false,
-		}
-	case database.GetPostsByUserRow:
-		return Post{
-			d.ID, d.CreatedAt, d.UpdatedAt, d.Title, d.Url, d.Description, d.PublishedAt.Time, d.FeedID, d.Liked,
+			d.ID, d.CreatedAt, d.UpdatedAt, d.Title, d.Url, d.Description, d.PublishedAt.Time, d.FeedID,
 		}
 	case database.PostLike:
 		return PostLike(d)

@@ -45,6 +45,7 @@ async function getPosts(apikey, offset, limit) {
 		}
 	});
 	const list = await response.json() || [];
+	console.log(list);
 
 	return {
 		list,
@@ -125,4 +126,41 @@ async function toggleFeedFollow(feed_id, follow) {
 	}
 
 	return true;
+}
+
+async function getLikes(apikey) {
+	const response = await fetch ("/v1/post_likes", {
+		method: "GET",
+		headers: {
+			"Authorization": "ApiKey "+apikey
+		}
+	});
+
+	const result = await response.json() || [];
+	return result;
+}
+
+async function likePost(apikey, post_id) {
+	const body = {post_id};
+	const response = await fetch("/v1/post_likes", {
+		method: "POST",
+		headers: {
+			"Authorization": "ApiKey "+apikey
+		},
+		body: JSON.stringify(body)
+	});
+
+	const result = await response.json();
+	return result;
+}
+
+async function unlikePost(apikey, likeID) {
+	const response = await fetch("/v1/post_likes/"+likeID, {
+		method: "DELETE",
+		headers: {
+			"Authorization": "ApiKey "+apikey
+		}
+	});
+
+	return response.ok; 
 }

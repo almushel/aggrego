@@ -48,18 +48,38 @@ function loadPage(e) {
 	lsUpdatePosts();
 }
 
-function newPostElement(post) {
+function newPostElement(apikey, post, like) {
 	const result = document.createElement("div")
 	const title = document.createElement("h3");
 	const url = document.createElement("a");
 	url.href=post.url;
 	url.innerText = post.title;
 
+	const likeButton = document.createElement("button");
+	let likeID = (like && like.id) || null;
+	likeButton.innerText = likeID ? "Unlike" : "Like";
+	likeButton.addEventListener("click", async () => {
+		if (likeID) {
+			const success = await unlikePost(apikey, likeID);
+			if (success) {
+				console.log("unliked");
+				likeButton.textContent = "Like";
+				likeID = null;
+			}
+		} else {
+			const like = await likePost(apikey, post.id);
+			if (like) {
+				likeButton.textContent = "Unlike";
+				likeID = like.id;
+			}
+		}	
+	})
+
 	const description = document.createElement("p");
 	description.innerHTML = post.description;
 
 	title.append(url);
-	result.append(title, description);
+	result.append(title, likeButton, description);
 	return result;
 }
 
@@ -76,11 +96,17 @@ async function appendPosts(apikey, offset=0, limit=postPageSize) {
 	loadingElement.innerText = "Loading...";
 	container.append(loadingElement);
 
+	const likes = await getLikes(apikey);
+	const likeMap = {};
+	for (let like of likes) {
+		likeMap[like.post_id] = like;
+	}
+
 	const posts = await getPosts(apikey, offset, limit);
 	const children = [];
 	if (posts.list.length > 0) {
 		for (let post of posts.list) {
-			children.push(newPostElement(post))
+			children.push(newPostElement(apikey, post, likeMap[post.id]))
 		}
 		const nextOffset = posts.offset + children.length;
 

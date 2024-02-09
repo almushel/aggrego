@@ -86,12 +86,16 @@ func (api *ApiState) GetLikesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	likes, err := api.DB.GetLikedPostsByUser(r.Context(), user.ID)
+	likes, err := api.DB.GetUserLikes(r.Context(), user.ID)
 	if err != nil {
 		log.Println("Error:", err)
 		respondWithError(w, 500, "Internal server error")
 		return
 	}
+	var result []PostLike
+	for _, like := range likes {
+		result = append(result, dbToAPI(like).(PostLike))
+	}
 
-	respondWithJSON(w, 200, likes)
+	respondWithJSON(w, 200, result)
 }
